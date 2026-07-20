@@ -27,29 +27,19 @@ file(GLOB_RECURSE LIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Static library output
-add_library(STATIC_LIB STATIC ${LIB_SOURCES} ${LIB_HEADERS})
-target_include_directories(STATIC_LIB
+add_library(ASN1PP_STATIC_LIB STATIC ${LIB_SOURCES} ${LIB_HEADERS})
+target_include_directories(ASN1PP_STATIC_LIB
    PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-# Link with dependencies
-# target_link_libraries(STATIC_LIB
-#     PUBLIC
-#       Example::lib
-# )
-set_target_properties(STATIC_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+set_target_properties(ASN1PP_STATIC_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
 # Shared library output
 if (BUILD_SHARED_LIBS)
-   add_library(SHARED_LIB SHARED ${LIB_SOURCES} ${LIB_HEADERS})
-   target_include_directories(SHARED_LIB
+   add_library(ASN1PP_SHARED_LIB SHARED ${LIB_SOURCES} ${LIB_HEADERS})
+   target_include_directories(ASN1PP_SHARED_LIB
       PUBLIC
          ${CMAKE_CURRENT_SOURCE_DIR}/include
    )
-   # Link with dependencies
-   # target_link_libraries(SHARED_LIB
-   #    PUBLIC
-   #       Example::lib
-   # )
-   set_target_properties(SHARED_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+   set_target_properties(ASN1PP_SHARED_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 endif()

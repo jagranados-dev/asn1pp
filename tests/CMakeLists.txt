@@ -22,33 +22,31 @@
 # SOFTWARE.
 ##################################################################################
 
-cmake_minimum_required(VERSION 3.16)
-project(asn1pp LANGUAGES CXX)
+include(FetchContent)
 
-# C++
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+FetchContent_Declare(
+  catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG v3.5.4
+)
+FetchContent_MakeAvailable(catch2)
 
-# Options
-option(BUILD_DOCS "Build library documentation" OFF)
-option(BUILD_TESTS "Build unit tests" OFF)
-option(BUILD_EXAMPLES "Build example executables" ON)
-option(BUILD_SHARED_LIBS "Build shared version of the library" OFF)
+file(GLOB_RECURSE TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
-# Library source
-add_subdirectory(lib)
+add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
 
-# Library unit tests
-if(BUILD_TESTS)
-    add_subdirectory(tests)
-endif()
+target_link_libraries(${PROJECT_NAME}_tests
+    PRIVATE
+        Catch2::Catch2WithMain
+        NIST_STS_STATIC_LIB
+)
 
-# Library examples
-if(BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
+# Heredar includes de la lib automáticamente
+target_include_directories(${PROJECT_NAME}_tests
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/include
+)
 
-# Library optional documentation (requires Doxygen)
-if(BUILD_DOCS)
-    add_subdirectory(doc)
-endif()
+include(CTest)
+include(Catch)
+catch_discover_tests(${PROJECT_NAME}_tests)

@@ -22,33 +22,13 @@
 # SOFTWARE.
 ##################################################################################
 
-cmake_minimum_required(VERSION 3.16)
-project(asn1pp LANGUAGES CXX)
+set(EXAMPLE "asn1_enc_dec")
 
-# C++
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Create the example binary
+add_executable(${EXAMPLE} ${EXAMPLE}.cpp)
 
-# Options
-option(BUILD_DOCS "Build library documentation" OFF)
-option(BUILD_TESTS "Build unit tests" OFF)
-option(BUILD_EXAMPLES "Build example executables" ON)
-option(BUILD_SHARED_LIBS "Build shared version of the library" OFF)
-
-# Library source
-add_subdirectory(lib)
-
-# Library unit tests
-if(BUILD_TESTS)
-    add_subdirectory(tests)
-endif()
-
-# Library examples
-if(BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
-# Library optional documentation (requires Doxygen)
-if(BUILD_DOCS)
-    add_subdirectory(doc)
-endif()
+# Link with the library
+target_link_libraries(${EXAMPLE}
+   PRIVATE
+      ASN1PP_STATIC_LIB
+)
