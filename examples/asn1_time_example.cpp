@@ -36,7 +36,7 @@ main ( int, char** )
     BER_Decoder decoder ( der_stream );
     decoder.start_sequence ()
            .decode ( decoded_time_1 )
-        .decode ( decoded_time_2 )
+           .decode ( decoded_time_2 )
            .end_cons ();
 
     std::cout << "Decoded Date 1 : " << decoded_time_1 << "\n";
@@ -49,5 +49,5 @@ main ( int, char** )
 
     std::cout << "SUCCESS: ASN1_Time encoded, decoded, and auto-tagged flawlessly!\n";
 
-    return 0;
+    return EXIT_SUCCESS;
 }

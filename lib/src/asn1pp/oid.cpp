@@ -25,8 +25,8 @@
 #include <asn1pp/oid.hpp>
 
 #include <ostream>
-#include <utility>
 #include <stdexcept>
+#include <utility>
 
 #include <asn1pp/asn1_errors.hpp>
 #include <asn1pp/ber_decoder.hpp>

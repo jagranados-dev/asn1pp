@@ -26,9 +26,9 @@
 #define __ASN1PP_ASN1_TIME_HPP_
 
 #include <chrono>
+#include <iosfwd>
 #include <string>
 #include <string_view>
-#include <iosfwd>
 
 #include <asn1pp/asn1_object.hpp>
 #include <asn1pp/asn1_types.hpp>

@@ -24,8 +24,6 @@
 
 #include <asn1pp/asn1_object.hpp>
 
-#include <vector>
-
 #include <asn1pp/der_encoder.hpp>
 
 namespace asn1pp

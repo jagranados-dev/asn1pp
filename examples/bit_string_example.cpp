@@ -37,5 +37,5 @@ main ( int, char** )
 
     std::cout << "SUCCESS: Bit_String encoded and decoded flawlessly!\n";
 
-    return 0;
+    return EXIT_SUCCESS;
 }

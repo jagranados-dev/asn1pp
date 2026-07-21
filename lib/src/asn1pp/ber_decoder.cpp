@@ -111,15 +111,6 @@ namespace asn1pp
         return BER_ObjectHeader ( type_tag, class_tag, length, header_size );
     }
 
-    BER_ObjectHeader
-    BER_Decoder::get_next_object ()
-    {
-        BER_ObjectHeader hdr = get_next_header ();
-        _offset += hdr.header_size + hdr.length;
-
-        return hdr;
-    }
-
     std::optional < BER_ObjectHeader >
     BER_Decoder::peek_next_header () const
     {
@@ -136,6 +127,15 @@ namespace asn1pp
         {
             return std::nullopt;
         }
+    }
+
+    BER_ObjectHeader
+    BER_Decoder::get_next_object ()
+    {
+        BER_ObjectHeader hdr = get_next_header ();
+        _offset += hdr.header_size + hdr.length;
+
+        return hdr;
     }
 
     std::vector < uint8_t >
@@ -291,4 +291,4 @@ namespace asn1pp
         return *this;
     }
 
-} // namespace asn1pp
+} // asn1pp

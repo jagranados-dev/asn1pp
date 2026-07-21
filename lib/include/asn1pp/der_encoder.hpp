@@ -146,6 +146,6 @@ namespace asn1pp
         std::vector < Subsequence > _subsequences;
     };
 
-} // namespace asn1pp
+} // asn1pp
 
 #endif // __ASN1PP_DER_ENCODER_HPP_

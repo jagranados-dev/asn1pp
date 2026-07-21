@@ -25,9 +25,9 @@
 #ifndef __ASN1PP_OID_HPP_
 #define __ASN1PP_OID_HPP_
 
+#include <initializer_list>
 #include <string>
 #include <string_view>
-#include <initializer_list>
 
 #include <asn1pp/asn1_object.hpp>
 
