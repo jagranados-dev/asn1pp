@@ -25,6 +25,7 @@
 #ifndef __ASN1PP_BER_DECODER_HPP_
 #define __ASN1PP_BER_DECODER_HPP_
 
+#include <optional>
 #include <span>
 #include <string>
 
@@ -128,8 +129,14 @@ namespace asn1pp
          * @brief Reads the next TLV object without type enforcement.
          */
         BER_ObjectHeader get_next_object ();
+
+        /**
+         * @brief Inspects the next ASN.1 object header without advancing the stream offset.
+         * @return The header if available, or std::nullopt if at the end of the stream.
+         */
+        [[nodiscard]] std::optional < BER_ObjectHeader > peek_next_header () const;
     private:
-        BER_ObjectHeader get_next_header ();
+        BER_ObjectHeader get_next_header () const;
         std::vector < uint8_t > get_next_value ( ASN1_Type expected_type, ASN1_Class expected_class );
         void start_cons ( ASN1_Type expected_type );
     private:

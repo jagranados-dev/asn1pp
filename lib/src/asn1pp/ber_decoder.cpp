@@ -51,7 +51,7 @@ namespace asn1pp
     }
 
     BER_ObjectHeader
-    BER_Decoder::get_next_header ()
+    BER_Decoder::get_next_header () const
     {
         if ( !more_items () )
         {
@@ -118,6 +118,24 @@ namespace asn1pp
         _offset += hdr.header_size + hdr.length;
 
         return hdr;
+    }
+
+    std::optional < BER_ObjectHeader >
+    BER_Decoder::peek_next_header () const
+    {
+        if ( !more_items () )
+        {
+            return std::nullopt;
+        }
+
+        try
+        {
+            return get_next_header ();
+        }
+        catch ( ... )
+        {
+            return std::nullopt;
+        }
     }
 
     std::vector < uint8_t >
