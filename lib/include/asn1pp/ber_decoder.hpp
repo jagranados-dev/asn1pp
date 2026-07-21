@@ -93,6 +93,18 @@ namespace asn1pp
                               ASN1_Class class_tag = ASN1_Class::UNIVERSAL);
 
         /**
+         * @brief Deserializes an abstract ASN.1 domain object by invoking its virtual decode_from method.
+         * @param obj The domain object instance to populate from the current BER stream.
+         * @return Reference to this BER_Decoder to allow fluent method chaining.
+         */
+        template < typename T >
+        BER_Decoder& decode ( T& obj )
+        {
+            obj.decode_from ( *this );
+            return *this;
+        }
+
+        /**
          * @brief Decodes and verifies an ASN.1 NULL object.
          */
         BER_Decoder& decode_null ();

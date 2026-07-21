@@ -32,7 +32,6 @@
 
 namespace asn1pp
 {
-
     /**
      * @brief DER Encoder implementing a fluent builder pattern with stack-based sequence handling.
      */
@@ -81,6 +80,18 @@ namespace asn1pp
         DER_Encoder& encode ( std::string_view str,
                               ASN1_Type type_tag   = ASN1_Type::UTF8_STRING,
                               ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Serializes an abstract ASN.1 domain object by invoking its virtual encode_into method.
+         * @param obj The domain object to serialize (e.g., OID, BitString, Certificate).
+         * @return Reference to this DER_Encoder to allow fluent method chaining.
+         */
+        template <typename T>
+        DER_Encoder& encode ( const T& obj )
+        {
+            obj.encode_into ( *this );
+            return *this;
+        }
 
         /**
          * @brief Encodes an ASN.1 NULL object.

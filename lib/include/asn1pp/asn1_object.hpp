@@ -30,13 +30,15 @@
 
 namespace asn1pp
 {
+
     class DER_Encoder;
     class BER_Decoder;
 
     /**
      * @brief Universal ASN.1 Object
      */
-    class ASN1_Object {
+    class ASN1_Object
+    {
     public:
         ASN1_Object () = default;
         ASN1_Object ( const ASN1_Object& ) = default;

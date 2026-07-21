@@ -115,7 +115,7 @@ main ( int, char** )
         assert ( decoded_payload == raw_payload );
         assert ( !decoder.more_items () );
 
-        std::cout << "\nSUCCESS: All ASN.1 structures encoded and decoded perfectly without external dependencies!\n";
+        std::cout << "\nSUCCESS: All ASN.1 structures encoded and decoded perfectly!\n";
     }
     catch ( const std::exception& ex )
     {

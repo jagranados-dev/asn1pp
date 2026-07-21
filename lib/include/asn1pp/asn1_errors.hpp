@@ -31,6 +31,14 @@
 namespace asn1pp
 {
 
+    class ASN1_InvalidArgument : public std::runtime_error
+    {
+    public:
+        explicit ASN1_InvalidArgument ( const std::string& msg )
+            : std::runtime_error ( "ASN.1 Invalid Argument: " + msg )
+        {}
+    };
+
     class ASN1_EncodingError : public std::runtime_error
     {
     public:

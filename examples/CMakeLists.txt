@@ -22,13 +22,15 @@
 # SOFTWARE.
 ##################################################################################
 
-set(EXAMPLE "asn1_enc_dec")
+file(GLOB EXAMPLE_SOURCES CONFIGURE_DEPENDS "*.cpp")
 
-# Create the example binary
-add_executable(${EXAMPLE} ${EXAMPLE}.cpp)
+foreach(EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
+    get_filename_component(EXAMPLE_NAME "${EXAMPLE_SOURCE}" NAME_WE)
 
-# Link with the library
-target_link_libraries(${EXAMPLE}
-   PRIVATE
-      ASN1PP_STATIC_LIB
-)
+    add_executable(${EXAMPLE_NAME} "${EXAMPLE_SOURCE}")
+
+    target_link_libraries(${EXAMPLE_NAME}
+       PRIVATE
+          ASN1PP_STATIC_LIB
+    )
+endforeach()
