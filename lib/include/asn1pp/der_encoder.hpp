@@ -1,15 +1,38 @@
-#ifndef __ASN1_DER_ENCODER_HPP_
-#define __ASN1_DER_ENCODER_HPP_
+/*********************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 Jose Alberto Granados
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *********************************************************************************/
 
-#include <vector>
-#include <string>
+#ifndef __ASN1PP_DER_ENCODER_HPP_
+#define __ASN1PP_DER_ENCODER_HPP_
+
 #include <string_view>
 #include <span>
 
-#include <asn1/asn1_types.hpp>
+#include <asn1pp/asn1_types.hpp>
 
-namespace asn1
+namespace asn1pp
 {
+
     /**
      * @brief DER Encoder implementing a fluent builder pattern with stack-based sequence handling.
      */
@@ -107,10 +130,11 @@ namespace asn1
 
         static void encode_length ( std::vector < uint8_t >& out, size_t length );
         static void encode_tag ( std::vector < uint8_t >& out, ASN1_Type type_tag, uint8_t class_tag );
-
+    private:
         std::vector < uint8_t > _contents;
         std::vector < Subsequence > _subsequences;
     };
-} // namespace asn1
 
-#endif // __ASN1_DER_ENCODER_HPP_
+} // namespace asn1pp
+
+#endif // __ASN1PP_DER_ENCODER_HPP_

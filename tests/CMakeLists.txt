@@ -1,7 +1,7 @@
 ##################################################################################
 # MIT License
 #
-# Copyright (c) 2025 Jose Alberto Granados
+# Copyright (c) 2026 Jose Alberto Granados
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ include(FetchContent)
 FetchContent_Declare(
   catch2
   GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-  GIT_TAG v3.5.4
+  GIT_TAG v3.15.2
 )
 FetchContent_MakeAvailable(catch2)
 
@@ -38,7 +38,7 @@ add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
 target_link_libraries(${PROJECT_NAME}_tests
     PRIVATE
         Catch2::Catch2WithMain
-        NIST_STS_STATIC_LIB
+        ASN1PP_STATIC_LIB
 )
 
 # Heredar includes de la lib automáticamente
