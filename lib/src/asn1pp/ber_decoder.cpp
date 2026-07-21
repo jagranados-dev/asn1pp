@@ -1,11 +1,36 @@
-#include <asn1/ber_decoder.hpp>
+/*********************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 Jose Alberto Granados
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *********************************************************************************/
 
-#include <stdexcept>
+#include <asn1pp/ber_decoder.hpp>
 
-namespace asn1
+#include <asn1pp/asn1_errors.hpp>
+
+namespace asn1pp
 {
+
     BER_Decoder::BER_Decoder ( std::span < const uint8_t > data )
-        : _data ( data ), _offset ( 0 )
+        : _offset ( 0 ), _data ( data )
     {
         _limits.push_back ( data.size () );
     }
@@ -25,12 +50,12 @@ namespace asn1
         return _offset < _limits.back ();
     }
 
-    BER_Object_Header
+    BER_ObjectHeader
     BER_Decoder::get_next_header ()
     {
         if ( !more_items () )
         {
-            throw ASN1_Decoding_Error ( "Attempted to read past the end of the ASN.1 buffer" );
+            throw ASN1_DecodingError ( "Attempted to read past the end of the ASN.1 buffer" );
         }
 
         size_t pos = _offset;
@@ -42,12 +67,12 @@ namespace asn1
 
         if ( static_cast < uint8_t > ( type_tag ) == 0x1F )
         {
-            throw ASN1_Decoding_Error ( "High-tag number form (>30) is not supported in this standalone view" );
+            throw ASN1_DecodingError ( "High-tag number form (>30) is not supported in this standalone view" );
         }
 
         if ( pos >= _limits.back () )
         {
-            throw ASN1_Decoding_Error ( "Buffer truncated while reading length byte" );
+            throw ASN1_DecodingError ( "Buffer truncated while reading length byte" );
         }
 
         // Parse BER/DER length
@@ -63,12 +88,12 @@ namespace asn1
             const size_t num_bytes = len_byte & 0x7F;
             if ( num_bytes == 0 || num_bytes > sizeof ( size_t ) )
             {
-                throw ASN1_Decoding_Error ( "Invalid or unsupported length encoding size" );
+                throw ASN1_DecodingError ( "Invalid or unsupported length encoding size" );
             }
 
             if ( pos + num_bytes > _limits.back () )
             {
-                throw ASN1_Decoding_Error ( "Buffer overflow while reading length bytes" );
+                throw ASN1_DecodingError ( "Buffer overflow while reading length bytes" );
             }
 
             for ( size_t i = 0; i < num_bytes; ++i )
@@ -79,17 +104,17 @@ namespace asn1
 
         if ( ( pos + length ) > _limits.back () )
         {
-            throw ASN1_Decoding_Error ( "ASN.1 object value extends beyond enclosing scope limit" );
+            throw ASN1_DecodingError ( "ASN.1 object value extends beyond enclosing scope limit" );
         }
         
         const size_t header_size = pos - _offset;
-        return BER_Object_Header ( type_tag, class_tag, length, header_size );
+        return BER_ObjectHeader ( type_tag, class_tag, length, header_size );
     }
 
-    BER_Object_Header
+    BER_ObjectHeader
     BER_Decoder::get_next_object ()
     {
-        BER_Object_Header hdr = get_next_header ();
+        BER_ObjectHeader hdr = get_next_header ();
         _offset += hdr.header_size + hdr.length;
 
         return hdr;
@@ -98,12 +123,12 @@ namespace asn1
     std::vector < uint8_t >
     BER_Decoder::get_next_value ( ASN1_Type expected_type, ASN1_Class expected_class )
     {
-        BER_Object_Header hdr = get_next_header();
+        BER_ObjectHeader hdr = get_next_header ();
         const uint8_t exp_class_val = static_cast < uint8_t > ( expected_class );
 
         if ( hdr.type_tag != expected_type || ( hdr.class_tag & 0xC0 ) != ( exp_class_val & 0xC0 ) )
         {
-            throw ASN1_Decoding_Error ( "Tag mismatch: expected different type or class tag" );
+            throw ASN1_DecodingError ( "Tag mismatch: expected different type or class tag" );
         }
 
         _offset += hdr.header_size;
@@ -120,7 +145,7 @@ namespace asn1
 
         if ( val.size () != 1 )
         {
-            throw ASN1_Decoding_Error ( "Invalid length for ASN.1 BOOLEAN" );
+            throw ASN1_DecodingError ( "Invalid length for ASN.1 BOOLEAN" );
         }
 
         out = ( val [ 0 ] != 0 );
@@ -135,7 +160,7 @@ namespace asn1
 
         if ( val.empty () || val.size () > 9 )
         {
-            throw ASN1_Decoding_Error ( "INTEGER size out of uint64_t supported bounds" );
+            throw ASN1_DecodingError ( "INTEGER size out of uint64_t supported bounds" );
         }
 
         out = 0;
@@ -154,7 +179,7 @@ namespace asn1
 
         if ( val.empty () || val.size () > 8)
         {
-            throw ASN1_Decoding_Error ( "INTEGER size out of int64_t supported bounds" );
+            throw ASN1_DecodingError ( "INTEGER size out of int64_t supported bounds" );
         }
 
         // Check if sign bit is set for two's complement negative number
@@ -189,13 +214,13 @@ namespace asn1
     }
 
     BER_Decoder&
-    BER_Decoder::decode_null()
+    BER_Decoder::decode_null ()
     {
         std::vector < uint8_t > val = get_next_value ( ASN1_Type::NULL_TAG, ASN1_Class::UNIVERSAL );
 
         if ( !val.empty () )
         {
-            throw ASN1_Decoding_Error ( "ASN.1 NULL must have zero length" );
+            throw ASN1_DecodingError ( "ASN.1 NULL must have zero length" );
         }
 
         return *this;
@@ -204,10 +229,10 @@ namespace asn1
     void
     BER_Decoder::start_cons ( ASN1_Type expected_type )
     {
-        BER_Object_Header hdr = get_next_header ();
+        BER_ObjectHeader hdr = get_next_header ();
         if ( hdr.type_tag != expected_type || ( hdr.class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) == 0 )
         {
-            throw ASN1_Decoding_Error ( "Expected CONSTRUCTED structure tag" );
+            throw ASN1_DecodingError ( "Expected CONSTRUCTED structure tag" );
         }
 
         _offset += hdr.header_size;
@@ -233,18 +258,19 @@ namespace asn1
     {
         if ( _limits.size () <= 1 )
         {
-            throw ASN1_Decoding_Error ( "end_cons() called with no open sequence/set" );
+            throw ASN1_DecodingError ( "end_cons() called with no open sequence/set" );
         }
 
         const size_t scope_limit = _limits.back ();
 
         if ( _offset != scope_limit )
         {
-            throw ASN1_Decoding_Error ( "Unconsumed bytes remaining in closed SEQUENCE/SET scope" );
+            throw ASN1_DecodingError ( "Unconsumed bytes remaining in closed SEQUENCE/SET scope" );
         }
 
         _limits.pop_back ();
 
         return *this;
     }
-} // namespace asn1
+
+} // namespace asn1pp
