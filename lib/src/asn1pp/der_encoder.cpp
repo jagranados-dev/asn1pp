@@ -27,6 +27,7 @@
 #include <algorithm>
 
 #include <asn1pp/asn1_errors.hpp>
+#include <asn1pp/asn1_object.hpp>
 
 namespace asn1pp
 {
@@ -125,14 +126,14 @@ namespace asn1pp
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( bool val )
+    DER_Encoder::encode ( bool val, ASN1_Type type_tag, ASN1_Class class_tag )
     {
         const uint8_t byte_val = val ? 0xFF : 0x00;
-        return add_object ( ASN1_Type::BOOLEAN, ASN1_Class::UNIVERSAL, std::span ( &byte_val, 1 ) );
+        return add_object ( type_tag, class_tag, std::span ( &byte_val, 1 ) );
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( uint64_t val )
+    DER_Encoder::encode ( uint64_t val, ASN1_Type type_tag, ASN1_Class class_tag )
     {
         std::vector < uint8_t > contents;
 
@@ -157,15 +158,15 @@ namespace asn1pp
             std::reverse ( contents.begin (), contents.end () );
         }
 
-        return add_object ( ASN1_Type::INTEGER, ASN1_Class::UNIVERSAL, contents );
+        return add_object ( type_tag, class_tag, contents );
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( int64_t val )
+    DER_Encoder::encode ( int64_t val, ASN1_Type type_tag, ASN1_Class class_tag )
     {
         if ( val >= 0 )
         {
-            return encode ( static_cast < uint64_t > ( val ) );
+            return encode ( static_cast < uint64_t > ( val ), type_tag, class_tag );
         }
 
         // Handle negative integers via two's complement DER rules
@@ -186,7 +187,7 @@ namespace asn1pp
 
         std::reverse ( contents.begin (), contents.end () );
 
-        return add_object ( ASN1_Type::INTEGER, ASN1_Class::UNIVERSAL, contents );
+        return add_object ( type_tag, class_tag, contents );
     }
 
     DER_Encoder&
@@ -198,8 +199,70 @@ namespace asn1pp
     DER_Encoder&
     DER_Encoder::encode ( std::string_view str, ASN1_Type type_tag, ASN1_Class class_tag )
     {
-        std::span < const uint8_t > bytes ( reinterpret_cast < const uint8_t *> ( str.data () ), str.size () );
-        return add_object(type_tag, static_cast < uint8_t > ( class_tag ), bytes);
+        std::span < const uint8_t > bytes ( reinterpret_cast < const uint8_t* > ( str.data () ), str.size () );
+        return add_object ( type_tag, static_cast < uint8_t > ( class_tag ), bytes );
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode ( const ASN1_Object& obj )
+    {
+        obj.encode_into ( *this );
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode_default ( bool val, bool default_val )
+    {
+        if ( val != default_val )
+        {
+            encode ( val );
+        }
+
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode_default ( uint64_t val, uint64_t default_val )
+    {
+        if ( val != default_val )
+        {
+            encode ( val );
+        }
+
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode_default ( int64_t val, int64_t default_val )
+    {
+        if ( val != default_val )
+        {
+            encode ( val );
+        }
+
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode_default ( std::string_view str, std::string_view default_val, ASN1_Type type_tag, ASN1_Class class_tag )
+    {
+        if ( str != default_val )
+        {
+            encode ( str, type_tag, class_tag );
+        }
+
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode_default ( std::span < const uint8_t > bytes, std::span < const uint8_t > default_val, ASN1_Type type_tag, ASN1_Class class_tag )
+    {
+        if ( !std::equal ( bytes.begin (), bytes.end (), default_val.begin (), default_val.end () ) )
+        {
+            encode ( bytes, type_tag, class_tag );
+        }
+
+        return *this;
     }
 
     DER_Encoder&

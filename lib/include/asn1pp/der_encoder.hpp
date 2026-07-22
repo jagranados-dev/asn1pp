@@ -25,6 +25,7 @@
 #ifndef __ASN1PP_DER_ENCODER_HPP_
 #define __ASN1PP_DER_ENCODER_HPP_
 
+#include <optional>
 #include <string_view>
 #include <span>
 
@@ -32,6 +33,8 @@
 
 namespace asn1pp
 {
+
+    class ASN1_Object;
 
     /**
      * @brief DER Encoder implementing a fluent builder pattern with stack-based sequence handling.
@@ -56,17 +59,23 @@ namespace asn1pp
         /**
          * @brief Encodes a boolean value.
          */
-        DER_Encoder& encode ( bool val );
+        DER_Encoder& encode ( bool val,
+                              ASN1_Type type_tag   = ASN1_Type::BOOLEAN,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Encodes an unsigned integer (up to 64-bit).
          */
-        DER_Encoder& encode ( uint64_t val );
+        DER_Encoder& encode ( uint64_t val,
+                              ASN1_Type type_tag   = ASN1_Type::INTEGER,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Encodes a signed integer (up to 64-bit).
          */
-        DER_Encoder& encode ( int64_t val );
+        DER_Encoder& encode ( int64_t val,
+                              ASN1_Type type_tag   = ASN1_Type::INTEGER,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Encodes an OCTET STRING or raw byte vector with a specific tag.
@@ -87,10 +96,93 @@ namespace asn1pp
          * @param obj The domain object to serialize (e.g., OID, BitString, Certificate).
          * @return Reference to this DER_Encoder to allow fluent method chaining.
          */
-        template <typename T>
-        DER_Encoder& encode ( const T& obj )
+        DER_Encoder& encode ( const ASN1_Object& obj );
+
+        /**
+         * @brief Encodes a boolean value ONLY if it differs from default_val (ASN.1 DEFAULT).
+         */
+        DER_Encoder& encode_default ( bool val, bool default_val );
+
+        /**
+         * @brief Encodes an unsigned integer ONLY if it differs from default_val (ASN.1 DEFAULT).
+         */
+        DER_Encoder& encode_default ( uint64_t val, uint64_t default_val );
+
+        /**
+         * @brief Encodes a signed integer ONLY if it differs from default_val (ASN.1 DEFAULT).
+         */
+        DER_Encoder& encode_default ( int64_t val, int64_t default_val );
+
+        /**
+         * @brief Encodes a string ONLY if it differs from default_val (ASN.1 DEFAULT).
+         */
+        DER_Encoder& encode_default ( std::string_view str,
+                                      std::string_view default_val,
+                                      ASN1_Type type_tag   = ASN1_Type::UTF8_STRING,
+                                      ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Encodes a byte span ONLY if it differs from default_val (ASN.1 DEFAULT).
+         */
+        DER_Encoder& encode_default ( std::span < const uint8_t > bytes,
+                                      std::span < const uint8_t > default_val,
+                                      ASN1_Type type_tag   = ASN1_Type::OCTET_STRING,
+                                      ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Encodes a domain object ONLY if it differs from default_val (ASN.1 DEFAULT).
+         */
+        template < typename T >
+        requires std::is_base_of_v < ASN1_Object, T >
+        DER_Encoder& encode_default ( const T& obj, const T& default_val )
         {
-            obj.encode_into ( *this );
+            if ( obj != default_val )
+            {
+                encode ( obj );
+            }
+
+            return *this;
+        }
+
+        /**
+         * @brief Encodes the value contained in a std::optional<T> ONLY if present (ASN.1 OPTIONAL).
+         */
+        template < typename T >
+        DER_Encoder& encode_optional ( const std::optional < T >& obj )
+        {
+            if ( obj.has_value () )
+            {
+                if constexpr ( std::is_base_of_v < ASN1_Object, T > )
+                {
+                    encode ( *obj );
+                }
+                else
+                {
+                    encode ( *obj );
+                }
+            }
+
+            return *this;
+        }
+
+        /**
+         * @brief Conditionally encodes any value based on a boolean flag (ASN.1 OPTIONAL).
+         */
+        template < typename T >
+        DER_Encoder& encode_optional_if ( bool condition, const T& val )
+        {
+            if ( condition )
+            {
+                if constexpr ( std::is_base_of_v < ASN1_Object, T > )
+                {
+                    encode ( val );
+                }
+                else
+                {
+                    encode ( val );
+                }
+            }
+
             return *this;
         }
 
@@ -125,9 +217,9 @@ namespace asn1pp
         DER_Encoder& add_object ( ASN1_Type type_tag,
                                   ASN1_Class class_tag,
                                   std::span < const uint8_t > rep );
-        DER_Encoder&  add_object ( ASN1_Type type_tag, 
-                                   uint8_t class_tag, 
-                                   std::span < const uint8_t > rep );
+        DER_Encoder& add_object ( ASN1_Type type_tag,
+                                  uint8_t class_tag,
+                                  std::span < const uint8_t > rep );
     private:
         struct Subsequence
         {

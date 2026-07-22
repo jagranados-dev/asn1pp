@@ -19,8 +19,8 @@ main ( int, char** )
     // 2. Codificación: Pasamos el objeto OID directamente al encoder
     DER_Encoder encoder;
     encoder.start_sequence ()
-           .encode ( rsa_oid )
-           .encode ( sha256_with_rsa )
+              .encode ( rsa_oid )
+              .encode ( sha256_with_rsa )
            .end_cons ();
 
     std::vector < uint8_t > der_stream = encoder.get_contents ();
@@ -31,8 +31,8 @@ main ( int, char** )
 
     BER_Decoder decoder ( der_stream );
     decoder.start_sequence ()
-           .decode ( decoded_oid_1 )
-           .decode ( decoded_oid_2 )
+              .decode ( decoded_oid_1 )
+              .decode ( decoded_oid_2 )
            .end_cons ();
 
     std::cout << "Decoded OID 1: " << decoded_oid_1 << "\n";

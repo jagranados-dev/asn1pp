@@ -65,13 +65,13 @@ main ( int, char** )
 
     DER_Encoder encoder;
     encoder.start_sequence ()
-           .encode ( static_cast < uint64_t > ( 1 ) )
-           .encode ( true )
-           .encode ( "ASN1_User", ASN1_Type::UTF8_STRING )
-           .start_sequence ()
-           .encode ( static_cast < uint64_t > ( 9988776655ULL ) )
-           .encode ( raw_payload, ASN1_Type::OCTET_STRING )
-           .end_cons ()
+                .encode ( static_cast < uint64_t > ( 1 ) )
+                .encode ( true )
+                .encode ( "ASN1_User", ASN1_Type::UTF8_STRING )
+                .start_sequence ()
+                    .encode ( static_cast < uint64_t > ( 9988776655ULL ) )
+                    .encode ( raw_payload, ASN1_Type::OCTET_STRING )
+                .end_cons ()
            .end_cons ();
 
     auto encoded_data = encoder.get_contents ();
@@ -89,13 +89,13 @@ main ( int, char** )
 
     BER_Decoder decoder ( encoded_data );
     decoder.start_sequence ()
-           .decode ( version )
-           .decode ( active )
-           .decode ( username, ASN1_Type::UTF8_STRING )
-           .start_sequence ()
-           .decode ( id )
-           .decode ( decoded_payload, ASN1_Type::OCTET_STRING )
-           .end_cons ()
+                .decode ( version )
+                .decode ( active )
+                .decode ( username, ASN1_Type::UTF8_STRING )
+                .start_sequence ()
+                    .decode ( id )
+                    .decode ( decoded_payload, ASN1_Type::OCTET_STRING )
+                .end_cons ()
            .end_cons ();
 
     std::cout << "Decoded Values:\n";

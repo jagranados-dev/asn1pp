@@ -17,7 +17,7 @@ main ( int, char** )
 
     DER_Encoder encoder;
     encoder.start_sequence ()
-           .encode ( pub_key )
+              .encode ( pub_key )
            .end_cons ();
 
     std::vector < uint8_t > der_stream = encoder.get_contents ();
@@ -26,7 +26,7 @@ main ( int, char** )
     Bit_String decoded_key;
     BER_Decoder decoder ( der_stream );
     decoder.start_sequence ()
-           .decode ( decoded_key )
+              .decode ( decoded_key )
            .end_cons ();
 
     std::cout << "Decoded Bit_String : " << decoded_key << "\n";

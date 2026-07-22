@@ -19,8 +19,8 @@ int main ()
 
     DER_Encoder encoder;
     encoder.start_sequence ()
-           .encode ( small_num )
-           .encode ( rsa_modulus_chunk )
+              .encode ( small_num )
+              .encode ( rsa_modulus_chunk )
            .end_cons ();
 
     std::vector < uint8_t > der_stream = encoder.get_contents ();
@@ -31,8 +31,8 @@ int main ()
 
     BER_Decoder decoder ( der_stream );
     decoder.start_sequence ()
-           .decode ( decoded_small )
-           .decode ( decoded_large )
+              .decode ( decoded_small )
+              .decode ( decoded_large )
            .end_cons ();
 
     std::cout << "Decoded Small : " << decoded_small << "\n";

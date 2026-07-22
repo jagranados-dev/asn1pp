@@ -23,8 +23,8 @@ main ( int, char** )
 
     DER_Encoder encoder;
     encoder.start_sequence ()
-           .encode ( time_2026 )
-           .encode ( time_2055 )
+              .encode ( time_2026 )
+              .encode ( time_2055 )
            .end_cons ();
 
     std::vector < uint8_t > der_stream = encoder.get_contents ();
@@ -35,8 +35,8 @@ main ( int, char** )
 
     BER_Decoder decoder ( der_stream );
     decoder.start_sequence ()
-           .decode ( decoded_time_1 )
-           .decode ( decoded_time_2 )
+              .decode ( decoded_time_1 )
+              .decode ( decoded_time_2 )
            .end_cons ();
 
     std::cout << "Decoded Date 1 : " << decoded_time_1 << "\n";

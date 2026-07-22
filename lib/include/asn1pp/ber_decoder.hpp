@@ -34,6 +34,8 @@
 namespace asn1pp
 {
 
+    class ASN1_Object;
+
     /**
      * @brief BER/DER object header definition.
      */
@@ -54,8 +56,8 @@ namespace asn1pp
         /**
          * @brief Constructs a decoder over a read-only memory span.
          */
-        explicit BER_Decoder(std::span<const uint8_t> data);
-        explicit BER_Decoder(const std::vector<uint8_t> &data);
+        explicit BER_Decoder ( std::span < const uint8_t > data );
+        explicit BER_Decoder ( const std::vector < uint8_t >& data );
 
         ~BER_Decoder() = default;
 
@@ -67,17 +69,23 @@ namespace asn1pp
         /**
          * @brief Decodes a boolean value.
          */
-        BER_Decoder& decode ( bool& out );
+        BER_Decoder& decode ( bool& out,
+                              ASN1_Type type_tag   = ASN1_Type::BOOLEAN,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Decodes an unsigned integer.
          */
-        BER_Decoder& decode ( uint64_t &out );
+        BER_Decoder& decode ( uint64_t& out,
+                              ASN1_Type type_tag   = ASN1_Type::INTEGER,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Decodes a signed integer.
          */
-        BER_Decoder& decode ( int64_t& out );
+        BER_Decoder& decode ( int64_t& out,
+                              ASN1_Type type_tag   = ASN1_Type::INTEGER,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Decodes a byte vector (e.g., OCTET STRING or BIT STRING).
@@ -90,18 +98,108 @@ namespace asn1pp
          * @brief Decodes a string (e.g., UTF8String, PrintableString).
          */
         BER_Decoder& decode ( std::string& out,
-                              ASN1_Type  type_tag = ASN1_Type::UTF8_STRING,
-                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL);
+                              ASN1_Type type_tag   = ASN1_Type::UTF8_STRING,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
          * @brief Deserializes an abstract ASN.1 domain object by invoking its virtual decode_from method.
          * @param obj The domain object instance to populate from the current BER stream.
          * @return Reference to this BER_Decoder to allow fluent method chaining.
          */
+        BER_Decoder& decode ( ASN1_Object& obj );
+
+        /**
+         * @brief Decodes a boolean value, falling back to default_val if tag is missing (ASN.1 DEFAULT).
+         */
+        BER_Decoder& decode_default ( bool& out,
+                                      bool default_val,
+                                      ASN1_Type expected_type   = ASN1_Type::BOOLEAN,
+                                      ASN1_Class expected_class = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Decodes an unsigned integer, falling back to default_val if tag is missing (ASN.1 DEFAULT).
+         */
+        BER_Decoder& decode_default ( uint64_t& out,
+                                      uint64_t default_val,
+                                      ASN1_Type expected_type   = ASN1_Type::INTEGER,
+                                      ASN1_Class expected_class = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Decodes a signed integer, falling back to default_val if tag is missing (ASN.1 DEFAULT).
+         */
+        BER_Decoder& decode_default ( int64_t& out,
+                                      int64_t default_val,
+                                      ASN1_Type expected_type   = ASN1_Type::INTEGER,
+                                      ASN1_Class expected_class = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Decodes a string, falling back to default_val if tag is missing (ASN.1 DEFAULT).
+         */
+        BER_Decoder& decode_default ( std::string& out,
+                                      const std::string& default_val,
+                                      ASN1_Type expected_type   = ASN1_Type::UTF8_STRING,
+                                      ASN1_Class expected_class = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Decodes a byte vector, falling back to default_val if tag is missing (ASN.1 DEFAULT).
+         */
+        BER_Decoder& decode_default ( std::vector < uint8_t >& out,
+                                      const std::vector < uint8_t >& default_val,
+                                      ASN1_Type expected_type   = ASN1_Type::OCTET_STRING,
+                                      ASN1_Class expected_class = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Decodes a domain object, falling back to default_val if tag is missing (ASN.1 DEFAULT).
+         */
         template < typename T >
-        BER_Decoder& decode ( T& obj )
+        requires std::is_base_of_v < ASN1_Object, T >
+        BER_Decoder& decode_default ( T& obj,
+                                      const T& default_val,
+                                      ASN1_Type expected_type,
+                                      ASN1_Class expected_class = ASN1_Class::UNIVERSAL )
         {
-            obj.decode_from ( *this );
+            auto hdr = peek_next_header ();
+            if ( hdr && hdr->type_tag == expected_type &&
+                 ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+            {
+                decode ( obj );
+            }
+            else
+            {
+                obj = default_val;
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Decodes into a std::optional<T>, leaving it empty (nullopt) if the expected tag is absent (ASN.1 OPTIONAL).
+         */
+        template < typename T >
+        BER_Decoder& decode_optional ( std::optional < T >& out,
+                                       ASN1_Type expected_type,
+                                       ASN1_Class expected_class = ASN1_Class::UNIVERSAL )
+        {
+            auto hdr = peek_next_header ();
+
+            if ( hdr && hdr->type_tag == expected_type &&
+               ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+            {
+                T val;
+                if constexpr ( std::is_base_of_v < ASN1_Object, T > )
+                {
+                    decode ( val );
+                }
+                else
+                {
+                    decode ( val, expected_type, expected_class );
+                }
+                out = std::move ( val );
+            }
+            else
+            {
+                out.reset ();
+            }
+
             return *this;
         }
 

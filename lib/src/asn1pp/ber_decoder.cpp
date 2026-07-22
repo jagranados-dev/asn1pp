@@ -25,6 +25,7 @@
 #include <asn1pp/ber_decoder.hpp>
 
 #include <asn1pp/asn1_errors.hpp>
+#include <asn1pp/asn1_object.hpp>
 
 namespace asn1pp
 {
@@ -157,9 +158,9 @@ namespace asn1pp
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( bool& out )
+    BER_Decoder::decode ( bool& out, ASN1_Type type_tag, ASN1_Class class_tag )
     {
-        std::vector < uint8_t > val = get_next_value ( ASN1_Type::BOOLEAN, ASN1_Class::UNIVERSAL );
+        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
 
         if ( val.size () != 1 )
         {
@@ -172,9 +173,9 @@ namespace asn1pp
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( uint64_t& out )
+    BER_Decoder::decode ( uint64_t& out, ASN1_Type type_tag, ASN1_Class class_tag )
     {
-        std::vector < uint8_t > val = get_next_value ( ASN1_Type::INTEGER, ASN1_Class::UNIVERSAL );
+        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
 
         if ( val.empty () || val.size () > 9 )
         {
@@ -191,16 +192,15 @@ namespace asn1pp
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( int64_t& out )
+    BER_Decoder::decode ( int64_t& out, ASN1_Type type_tag, ASN1_Class class_tag )
     {
-        std::vector < uint8_t > val = get_next_value ( ASN1_Type::INTEGER, ASN1_Class::UNIVERSAL );
+        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
 
-        if ( val.empty () || val.size () > 8)
+        if ( val.empty () || val.size () > 8 )
         {
             throw ASN1_DecodingError ( "INTEGER size out of int64_t supported bounds" );
         }
 
-        // Check if sign bit is set for two's complement negative number
         bool is_negative = ( val [ 0 ] & 0x80 ) != 0;
         uint64_t temp = is_negative ? static_cast < uint64_t > ( -1 ) : 0;
 
@@ -227,6 +227,93 @@ namespace asn1pp
     {
         std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
         out.assign ( val.begin (), val.end () );
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode ( ASN1_Object& obj )
+    {
+        obj.decode_from ( *this );
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_default ( bool& out, bool default_val, ASN1_Type expected_type, ASN1_Class expected_class )
+    {
+        auto hdr = peek_next_header ();
+
+        if ( hdr && hdr->type_tag == expected_type &&
+           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+        {
+            return decode ( out );
+        }
+
+        out = default_val;
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_default ( uint64_t& out, uint64_t default_val, ASN1_Type expected_type, ASN1_Class expected_class )
+    {
+        auto hdr = peek_next_header ();
+
+        if ( hdr && hdr->type_tag == expected_type &&
+           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+        {
+            return decode ( out );
+        }
+
+        out = default_val;
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_default ( int64_t& out, int64_t default_val, ASN1_Type expected_type, ASN1_Class expected_class )
+    {
+        auto hdr = peek_next_header ();
+
+        if ( hdr && hdr->type_tag == expected_type &&
+           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+        {
+            return decode ( out );
+        }
+
+        out = default_val;
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_default ( std::string& out, const std::string& default_val, ASN1_Type expected_type, ASN1_Class expected_class )
+    {
+        auto hdr = peek_next_header ();
+
+        if ( hdr && hdr->type_tag == expected_type &&
+           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+        {
+            return decode ( out, expected_type, expected_class );
+        }
+
+        out = default_val;
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_default ( std::vector < uint8_t >& out, const std::vector < uint8_t >& default_val, ASN1_Type expected_type, ASN1_Class expected_class )
+    {
+        auto hdr = peek_next_header ();
+
+        if ( hdr && hdr->type_tag == expected_type &&
+           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
+        {
+            return decode ( out, expected_type, expected_class );
+        }
+
+        out = default_val;
 
         return *this;
     }
