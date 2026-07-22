@@ -32,7 +32,9 @@
 *.app
 
 # VSCode
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # CMake
 build/
