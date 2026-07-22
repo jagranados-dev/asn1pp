@@ -41,7 +41,8 @@ namespace asn1pp
      * the count of unused padding bits (0 to 7) in the final byte according to
      * ITU-T X.690 DER/BER encoding rules.
      */
-    class Bit_String final : public ASN1_Object {
+    class Bit_String final : public ASN1_Object
+    {
     public:
         /**
          * @brief Constructs an empty BIT STRING.

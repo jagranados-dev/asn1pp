@@ -23,7 +23,12 @@
 ##################################################################################
 
 cmake_minimum_required(VERSION 3.16)
-project(asn1pp LANGUAGES CXX)
+
+# Project
+project(asn1pp 
+    VERSION 0.1.0
+    LANGUAGES CXX
+)
 
 # C++
 set(CMAKE_CXX_STANDARD 20)
@@ -48,7 +53,17 @@ if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# Library optional documentation (requires Doxygen)
+# Library optional documentation
 if(BUILD_DOCS)
+    find_package(Doxygen REQUIRED)
+    find_program(DOT_EXECUTABLE dot)
+
+    if(DOT_EXECUTABLE)
+        set(DOXYGEN_HAVE_DOT YES)
+    else()
+        set(DOXYGEN_HAVE_DOT NO)
+        message(WARNING "Graphviz not found. Diagrams will be disabled.")
+    endif()
+
     add_subdirectory(doc)
 endif()

@@ -43,7 +43,8 @@ namespace asn1pp
      * encoding and BER decoding according to ITU-T X.690 and RFC 5280 rules.
      * Automatically selects UTCTime for years 1950-2049 and GeneralizedTime otherwise.
      */
-    class ASN1_Time final : public ASN1_Object {
+    class ASN1_Time final : public ASN1_Object
+    {
     public:
         /**
          * @brief Constructs an uninitialized ASN1_Time (epoch time with UTC_TIME tag).
