@@ -30,6 +30,7 @@
 
 namespace asn1pp
 {
+
     std::vector < uint8_t >&
     DER_Encoder::current_stream()
     {

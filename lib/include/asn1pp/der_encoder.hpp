@@ -32,6 +32,7 @@
 
 namespace asn1pp
 {
+
     /**
      * @brief DER Encoder implementing a fluent builder pattern with stack-based sequence handling.
      */

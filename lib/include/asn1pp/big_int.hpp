@@ -44,7 +44,8 @@ namespace asn1pp
      * Automatically handles DER two's-complement rules (injecting/stripping leading
      * 0x00 sign padding bytes when the most significant bit is set).
      */
-    class Big_Int final : public ASN1_Object {
+    class Big_Int final : public ASN1_Object
+    {
     public:
         /**
          * @brief Constructs an initialized Big_Int representing the value zero (0x00).
