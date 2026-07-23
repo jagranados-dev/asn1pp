@@ -25,6 +25,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -32,6 +33,11 @@
 #include <asn1pp/asn1_errors.hpp>
 #include <asn1pp/asn1_types.hpp>
 #include <asn1pp/der_encoder.hpp>
+#include <asn1pp/ia5_string.hpp>
+#include <asn1pp/printable_string.hpp>
+#include <asn1pp/raw_value.hpp>
+#include <asn1pp/sequence_of.hpp>
+#include <asn1pp/set_of.hpp>
 
 using namespace asn1pp;
 
@@ -100,7 +106,34 @@ TEST_CASE ( "Encode Octet String and Null objects", "[enc-octet-null]" )
 }
 
 //-----------------------------------------------------------------------------
-// 2. OVERLOAD RESOLUTION BUG FIX VERIFICATION
+// 2. CANONICAL RESTRICTED STRINGS ENCODING
+//-----------------------------------------------------------------------------
+
+TEST_CASE ( "Encode IA5String and PrintableString domain objects", "[enc-strings]" )
+{
+    IA5_String ia5 ( "test@domain.com" );
+    Printable_String printable ( "User 123 +-" );
+
+    DER_Encoder encoder;
+    encoder.encode ( ia5 )
+           .encode ( printable );
+
+    const std::vector < uint8_t > expected = {
+        0x16, 0x0F, 't', 'e', 's', 't', '@', 'd', 'o', 'm', 'a', 'i', 'n', '.', 'c', 'o', 'm',
+        0x13, 0x0B, 'U', 's', 'e', 'r', ' ', '1', '2', '3', ' ', '+', '-'
+    };
+
+    REQUIRE ( encoder.get_contents () == expected );
+}
+
+TEST_CASE ( "PrintableString rejects characters outside restricted ASN.1 charset", "[enc-strings-validation]" )
+{
+    REQUIRE_THROWS_AS ( Printable_String ( "Invalid char @" ), ASN1_InvalidArgument );
+    REQUIRE_THROWS_AS ( Printable_String ( "Invalid char _" ), ASN1_InvalidArgument );
+}
+
+//-----------------------------------------------------------------------------
+// 3. OVERLOAD RESOLUTION BUG FIX VERIFICATION
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Encode string literal via const char* without pointer decay to Boolean", "[enc-bug-fix]" )
@@ -116,10 +149,10 @@ TEST_CASE ( "Encode string literal via const char* without pointer decay to Bool
 }
 
 //-----------------------------------------------------------------------------
-// 3. CONSTRUCTED TYPES (SEQUENCE AND SET)
+// 4. CONSTRUCTED TYPES AND OPEN TYPES (RAW VALUES)
 //-----------------------------------------------------------------------------
 
-TEST_CASE ( "Encode nested SEQUENCE and SET containers", "[enc-cons]" )
+TEST_CASE ( "Encode nested SEQUENCE and SET structural containers", "[enc-cons]" )
 {
     DER_Encoder encoder;
     encoder.start_sequence ()
@@ -139,8 +172,74 @@ TEST_CASE ( "Encode nested SEQUENCE and SET containers", "[enc-cons]" )
     REQUIRE ( encoder.get_contents () == expected );
 }
 
+TEST_CASE ( "Encode Raw_Value cleanly injects open TLV structures without wrapping", "[enc-raw-value]" )
+{
+    const std::vector < uint8_t > pre_encoded_oid = { 0x06, 0x03, 0x55, 0x04, 0x03 }; // OID 2.5.4.3 (commonName)
+    Raw_Value open_type ( pre_encoded_oid );
+
+    DER_Encoder encoder;
+    encoder.start_sequence ()
+               .encode ( static_cast < uint64_t > ( 1 ) )
+               .encode ( open_type )
+           .end_cons ();
+
+    const std::vector < uint8_t > expected = {
+        0x30, 0x08,                 // SEQUENCE (length 8)
+        0x02, 0x01, 0x01,           //   INTEGER 1
+        0x06, 0x03, 0x55, 0x04, 0x03//   Injected open TLV byte stream
+    };
+
+    REQUIRE ( encoder.get_contents () == expected );
+}
+
 //-----------------------------------------------------------------------------
-// 4. CONTEXT-SPECIFIC TAGGING
+// 5. COLLECTIONS (SEQUENCE OF AND SET OF WITH DER CANONICAL SORTING)
+//-----------------------------------------------------------------------------
+
+TEST_CASE ( "Encode Sequence_Of maintains exact insertion order", "[enc-seq-of]" )
+{
+    Sequence_Of < uint64_t > seq_of = { 30ULL, 10ULL, 20ULL };
+
+    DER_Encoder encoder;
+    encoder.encode ( seq_of );
+
+    const std::vector < uint8_t > expected = {
+        0x30, 0x09,         // SEQUENCE OF (length 9)
+        0x02, 0x01, 0x1E,   //   INTEGER 30
+        0x02, 0x01, 0x0A,   //   INTEGER 10
+        0x02, 0x01, 0x14    //   INTEGER 20
+    };
+
+    REQUIRE ( encoder.get_contents () == expected );
+}
+
+TEST_CASE ( "Encode Set_Of strictly enforces ITU-T X.690 DER canonical lexicographical sorting", "[enc-set-of]" )
+{
+    // Elements inserted out of binary order: 300 (0x01, 0x2C), 5 (0x05), 20 (0x14)
+    Set_Of < uint64_t > set_of;
+    set_of.push_back ( 300ULL ); // Binary DER: 02 02 01 2C
+    set_of.push_back ( 5ULL );   // Binary DER: 02 01 05
+    set_of.push_back ( 20ULL );  // Binary DER: 02 01 14
+
+    DER_Encoder encoder;
+    encoder.encode ( set_of );
+
+    // Expected order inside SET (0x31) after X.690 lexicographical sort:
+    // 1. 02 01 05      (5)   -> First byte 0x02, length 0x01, val 0x05
+    // 2. 02 01 14      (20)  -> First byte 0x02, length 0x01, val 0x14
+    // 3. 02 02 01 2C   (300) -> First byte 0x02, length 0x02 (greater than 0x01)
+    const std::vector < uint8_t > expected = {
+        0x31, 0x0A,
+        0x02, 0x01, 0x05,
+        0x02, 0x01, 0x14,
+        0x02, 0x02, 0x01, 0x2C
+    };
+
+    REQUIRE ( encoder.get_contents () == expected );
+}
+
+//-----------------------------------------------------------------------------
+// 6. CONTEXT-SPECIFIC TAGGING
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Encode IMPLICIT and EXPLICIT tagged elements", "[enc-tagging]" )
@@ -166,7 +265,7 @@ TEST_CASE ( "Encode IMPLICIT and EXPLICIT tagged elements", "[enc-tagging]" )
 }
 
 //-----------------------------------------------------------------------------
-// 5. DEFAULT AND OPTIONAL HANDLING
+// 7. DEFAULT AND OPTIONAL HANDLING
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Encode DEFAULT values only when differing from expected canonical value", "[enc-default]" )
@@ -206,7 +305,7 @@ TEST_CASE ( "Encode std::optional cleanly ignores nullopt values", "[enc-optiona
 }
 
 //-----------------------------------------------------------------------------
-// 6. ENCODER ERROR HANDLING
+// 8. ENCODER ERROR HANDLING
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Encoder throws ASN1_EncodingError on unclosed structural scope", "[enc-errors]" )

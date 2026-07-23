@@ -140,6 +140,17 @@ namespace asn1pp
     }
 
     std::vector < uint8_t >
+    BER_Decoder::get_next_raw_tlv ()
+    {
+        BER_ObjectHeader hdr = get_next_header ();
+        size_t start_pos = _offset;
+        size_t total_size = hdr.header_size + hdr.length;
+        _offset += total_size;
+
+        return std::vector < uint8_t > ( _data.begin () + start_pos, _data.begin () + start_pos + total_size );
+    }
+
+    std::vector < uint8_t >
     BER_Decoder::get_next_value ( ASN1_Type expected_type, ASN1_Class expected_class )
     {
         BER_ObjectHeader hdr = get_next_header ();

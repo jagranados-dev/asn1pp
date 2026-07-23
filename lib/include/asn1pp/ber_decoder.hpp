@@ -436,6 +436,12 @@ namespace asn1pp
          * @return An optional containing the header if available; std::nullopt if at end of buffer.
          */
         [[nodiscard]] std::optional < BER_ObjectHeader > peek_next_header () const;
+
+        /**
+         * @brief Extracts the entire raw TLV (Tag, Length, and Value bytes) of the next object and advances offset.
+         * @return A byte vector containing the exact unparsed TLV binary slice.
+         */
+        std::vector < uint8_t > get_next_raw_tlv ();
     private:
         BER_ObjectHeader get_next_header () const;
         std::vector < uint8_t > get_next_value ( ASN1_Type expected_type, ASN1_Class expected_class );

@@ -31,6 +31,11 @@
 #include <asn1pp/asn1_errors.hpp>
 #include <asn1pp/asn1_types.hpp>
 #include <asn1pp/ber_decoder.hpp>
+#include <asn1pp/ia5_string.hpp>
+#include <asn1pp/printable_string.hpp>
+#include <asn1pp/raw_value.hpp>
+#include <asn1pp/sequence_of.hpp>
+#include <asn1pp/set_of.hpp>
 
 using namespace asn1pp;
 
@@ -104,7 +109,41 @@ TEST_CASE ( "Decode Octet String, UTF8String, and Null objects", "[dec-string-nu
 }
 
 //-----------------------------------------------------------------------------
-// 2. CONSTRUCTED TYPES (SEQUENCE AND SET)
+// 2. CANONICAL RESTRICTED STRINGS DECODING
+//-----------------------------------------------------------------------------
+
+TEST_CASE ( "Decode IA5String and PrintableString domain objects", "[dec-strings]" )
+{
+    const std::vector < uint8_t > test_vector = {
+        0x16, 0x04, 'u', 's', 'e', 'r', // IA5String
+        0x13, 0x04, 'N', 'a', 'm', 'e'  // PrintableString
+    };
+
+    IA5_String ia5_val;
+    Printable_String printable_val;
+
+    BER_Decoder decoder ( test_vector );
+    decoder.decode ( ia5_val )
+           .decode ( printable_val );
+
+    REQUIRE ( ia5_val.get_string () == "user" );
+    REQUIRE ( printable_val.get_string () == "Name" );
+    REQUIRE ( !decoder.more_items () );
+}
+
+TEST_CASE ( "PrintableString throws ASN1_InvalidArgument when decoding invalid byte payloads", "[dec-strings-validation]" )
+{
+    // Tag 0x13 with payload '@' which is strictly forbidden in PrintableString
+    const std::vector < uint8_t > test_vector = { 0x13, 0x01, '@' };
+
+    BER_Decoder decoder ( test_vector );
+    Printable_String val;
+
+    REQUIRE_THROWS_AS ( decoder.decode ( val ), ASN1_InvalidArgument );
+}
+
+//-----------------------------------------------------------------------------
+// 3. CONSTRUCTED TYPES AND OPEN TYPES (RAW VALUES)
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Decode nested SEQUENCE and SET structures with scope boundary checks", "[dec-cons]" )
@@ -132,8 +171,66 @@ TEST_CASE ( "Decode nested SEQUENCE and SET structures with scope boundary check
     REQUIRE ( !decoder.more_items () );
 }
 
+TEST_CASE ( "Decode Raw_Value extracts complete open TLV structures accurately", "[dec-raw-value]" )
+{
+    const std::vector < uint8_t > test_vector = {
+        0x30, 0x07,                     // SEQUENCE (length 7)
+        0x02, 0x01, 0x01,               //   INTEGER 1
+        0x06, 0x02, 0x2A, 0x03          //   OID 1.2.3 (captured as raw open type)
+    };
+
+    uint64_t int_val = 0;
+    Raw_Value open_val;
+
+    BER_Decoder decoder ( test_vector );
+    decoder.start_sequence ()
+               .decode ( int_val )
+               .decode ( open_val )
+           .end_cons ();
+
+    const std::vector < uint8_t > expected_raw = { 0x06, 0x02, 0x2A, 0x03 };
+
+    REQUIRE ( int_val == 1ULL );
+    REQUIRE ( open_val.get_bytes () == expected_raw );
+    REQUIRE ( !decoder.more_items () );
+}
+
 //-----------------------------------------------------------------------------
-// 3. CONTEXT-SPECIFIC TAGGING AND HEADER INSPECTION
+// 4. COLLECTIONS (SEQUENCE OF AND SET OF DECODING)
+//-----------------------------------------------------------------------------
+
+TEST_CASE ( "Decode Sequence_Of and Set_Of collections cleanly populate containers", "[dec-collections]" )
+{
+    const std::vector < uint8_t > test_vector = {
+        0x30, 0x06,                     // SEQUENCE OF (length 6)
+        0x02, 0x01, 0x0A,               //   INTEGER 10
+        0x02, 0x01, 0x14,               //   INTEGER 20
+        0x31, 0x06,                     // SET OF (length 6)
+        0x02, 0x01, 0x05,               //   INTEGER 5
+        0x02, 0x01, 0x64                //   INTEGER 100
+    };
+
+    Sequence_Of < uint64_t > seq_of;
+    Set_Of < uint64_t > set_of;
+
+    BER_Decoder decoder ( test_vector );
+    decoder.decode ( seq_of )
+           .decode ( set_of );
+
+    REQUIRE ( seq_of.size () == 2 );
+    REQUIRE ( seq_of [ 0 ] == 10ULL );
+    REQUIRE ( seq_of [ 1 ] == 20ULL );
+
+    REQUIRE ( set_of.size () == 2 );
+    // Set_Of iterator inspection
+    auto it = set_of.begin ();
+    REQUIRE ( *( it++ ) == 5ULL );
+    REQUIRE ( *it == 100ULL );
+    REQUIRE ( !decoder.more_items () );
+}
+
+//-----------------------------------------------------------------------------
+// 5. CONTEXT-SPECIFIC TAGGING AND HEADER INSPECTION
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Decode IMPLICIT tags and inspect headers using peek_next_header", "[dec-tagging]" )
@@ -174,7 +271,7 @@ TEST_CASE ( "Decode EXPLICIT context-specific containers", "[dec-explicit]" )
 }
 
 //-----------------------------------------------------------------------------
-// 4. DEFAULT AND OPTIONAL HANDLING
+// 6. DEFAULT AND OPTIONAL HANDLING
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Decode DEFAULT values apply fallback when stream tag is absent", "[dec-default]" )
@@ -222,7 +319,7 @@ TEST_CASE ( "Decode OPTIONAL values handle both present and missing elements via
 }
 
 //-----------------------------------------------------------------------------
-// 5. DECODER ERROR HANDLING AND BOUNDARY CHECKS
+// 7. DECODER ERROR HANDLING AND BOUNDARY CHECKS
 //-----------------------------------------------------------------------------
 
 TEST_CASE ( "Decoder throws ASN1_DecodingError when reading past buffer end", "[dec-errors-eof]" )
