@@ -378,4 +378,27 @@ namespace asn1pp
         return *this;
     }
 
+    BER_Decoder&
+    BER_Decoder::start_explicit ( uint8_t tag_number )
+    {
+        BER_ObjectHeader hdr = get_next_header ();
+        if ( hdr.type_tag != static_cast < ASN1_Type > ( tag_number ) || 
+           ( hdr.class_tag & 0xC0u ) != static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) ||
+           ( hdr.class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) == 0 )
+        {
+            throw ASN1_DecodingError ( "Expected CONSTRUCTED EXPLICIT context-specific tag" );
+        }
+
+        _offset += hdr.header_size;
+        _limits.push_back ( _offset + hdr.length );
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::end_explicit ()
+    {
+        return end_cons ();
+    }
+
 } // asn1pp

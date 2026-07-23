@@ -43,7 +43,7 @@ int main ()
     assert ( decoded_small < decoded_large );
     assert ( !decoder.more_items () );
 
-    std::cout << "SUCCESS: Big_Int encoded, decoded, and DER sign-padded flawlessly!\n";
+    std::cout << "\nSUCCESS: Big_Int encoded, decoded, and DER sign-padded flawlessly!\n";
 
     return EXIT_SUCCESS;
 }

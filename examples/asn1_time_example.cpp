@@ -47,7 +47,7 @@ main ( int, char** )
     assert ( decoded_time_1 < decoded_time_2 );
     assert ( !decoder.more_items () );
 
-    std::cout << "SUCCESS: ASN1_Time encoded, decoded, and auto-tagged flawlessly!\n";
+    std::cout << "\nSUCCESS: ASN1_Time encoded, decoded, and auto-tagged flawlessly!\n";
 
     return EXIT_SUCCESS;
 }

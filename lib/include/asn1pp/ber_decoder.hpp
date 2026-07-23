@@ -224,6 +224,16 @@ namespace asn1pp
         BER_Decoder& end_cons ();
 
         /**
+         * @brief Opens an EXPLICIT tagged context-specific scope (e.g., [0] EXPLICIT).
+         */
+        BER_Decoder& start_explicit ( uint8_t tag_number );
+
+        /**
+         * @brief Closes an EXPLICIT tagged context-specific scope.
+         */
+        BER_Decoder& end_explicit ();
+
+        /**
          * @brief Reads the next TLV object without type enforcement.
          */
         BER_ObjectHeader get_next_object ();

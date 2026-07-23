@@ -92,6 +92,21 @@ namespace asn1pp
                               ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
         /**
+         * @brief Overload for const char* to prevent implicit pointer-to-bool decay.
+         */
+        DER_Encoder& encode ( const char* str,
+                              ASN1_Type type_tag   = ASN1_Type::UTF8_STRING,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Deleted pointer overload to strictly forbid any arbitrary pointer from decaying into bool.
+         */
+        template < typename T >
+        DER_Encoder& encode ( const T* ptr,
+                              ASN1_Type type_tag   = ASN1_Type::BOOLEAN,
+                              ASN1_Class class_tag = ASN1_Class::UNIVERSAL ) = delete;
+
+        /**
          * @brief Serializes an abstract ASN.1 domain object by invoking its virtual encode_into method.
          * @param obj The domain object to serialize (e.g., OID, BitString, Certificate).
          * @return Reference to this DER_Encoder to allow fluent method chaining.
@@ -118,6 +133,14 @@ namespace asn1pp
          */
         DER_Encoder& encode_default ( std::string_view str,
                                       std::string_view default_val,
+                                      ASN1_Type type_tag   = ASN1_Type::UTF8_STRING,
+                                      ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
+
+        /**
+         * @brief Overload for const char* to prevent implicit pointer-to-bool decay.
+         */
+        DER_Encoder& encode_default ( const char* str,
+                                      const char* default_val,
                                       ASN1_Type type_tag   = ASN1_Type::UTF8_STRING,
                                       ASN1_Class class_tag = ASN1_Class::UNIVERSAL );
 
@@ -152,35 +175,7 @@ namespace asn1pp
         {
             if ( obj.has_value () )
             {
-                if constexpr ( std::is_base_of_v < ASN1_Object, T > )
-                {
-                    encode ( *obj );
-                }
-                else
-                {
-                    encode ( *obj );
-                }
-            }
-
-            return *this;
-        }
-
-        /**
-         * @brief Conditionally encodes any value based on a boolean flag (ASN.1 OPTIONAL).
-         */
-        template < typename T >
-        DER_Encoder& encode_optional_if ( bool condition, const T& val )
-        {
-            if ( condition )
-            {
-                if constexpr ( std::is_base_of_v < ASN1_Object, T > )
-                {
-                    encode ( val );
-                }
-                else
-                {
-                    encode ( val );
-                }
+                encode ( *obj );
             }
 
             return *this;
@@ -205,6 +200,16 @@ namespace asn1pp
          * @brief Ends the current constructed structure (SEQUENCE or SET) and writes it to the parent stream.
          */
         DER_Encoder& end_cons ();
+
+        /**
+         * @brief Starts an EXPLICIT tagged context-specific block (e.g., [0] EXPLICIT).
+         */
+        DER_Encoder& start_explicit ( uint8_t tag_number );
+
+        /**
+         * @brief Ends an EXPLICIT tagged context-specific block.
+         */
+        DER_Encoder& end_explicit ();
 
         /**
          * @brief Injects raw bytes directly into the current stream without TLV wrapping.

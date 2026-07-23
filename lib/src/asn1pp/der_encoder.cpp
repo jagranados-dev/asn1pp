@@ -204,6 +204,12 @@ namespace asn1pp
     }
 
     DER_Encoder&
+    DER_Encoder::encode ( const char* str, ASN1_Type type_tag, ASN1_Class class_tag )
+    {
+        return encode ( std::string_view ( str ? str : "" ), type_tag, class_tag );
+    }
+
+    DER_Encoder&
     DER_Encoder::encode ( const ASN1_Object& obj )
     {
         obj.encode_into ( *this );
@@ -255,6 +261,12 @@ namespace asn1pp
     }
 
     DER_Encoder&
+    DER_Encoder::encode_default ( const char* str, const char* default_val, ASN1_Type type_tag, ASN1_Class class_tag )
+    {
+        return encode_default ( std::string_view ( str ? str : "" ), std::string_view ( default_val ? default_val : "" ), type_tag, class_tag );
+    }
+
+    DER_Encoder&
     DER_Encoder::encode_default ( std::span < const uint8_t > bytes, std::span < const uint8_t > default_val, ASN1_Type type_tag, ASN1_Class class_tag )
     {
         if ( !std::equal ( bytes.begin (), bytes.end (), default_val.begin (), default_val.end () ) )
@@ -303,6 +315,19 @@ namespace asn1pp
         _subsequences.pop_back();
 
         return add_object ( sub.tag, sub.class_tag, sub.contents );
+    }
+
+    DER_Encoder&
+    DER_Encoder::start_explicit ( uint8_t tag_number )
+    {
+        start_cons ( static_cast < ASN1_Type > ( tag_number ), static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) );
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::end_explicit ()
+    {
+        return end_cons ();
     }
 
 } // asn1pp

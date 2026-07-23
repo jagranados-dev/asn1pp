@@ -35,7 +35,7 @@ main ( int, char** )
     assert ( decoded_key.get_unused_bits () == 3 );
     assert ( !decoder.more_items () );
 
-    std::cout << "SUCCESS: Bit_String encoded and decoded flawlessly!\n";
+    std::cout << "\nSUCCESS: Bit_String encoded and decoded flawlessly!\n";
 
     return EXIT_SUCCESS;
 }

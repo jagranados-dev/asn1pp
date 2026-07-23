@@ -105,7 +105,6 @@ main ( int, char** )
     std::cout << " - Nested ID: " << id << "\n";
     std::cout << " - Payload : " << hex_encode ( decoded_payload ) << "\n";
 
-    // Verify asserts
     assert ( version == 1 );
     assert ( active == true );
     assert ( username == "ASN1_User" );
