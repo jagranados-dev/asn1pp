@@ -35,9 +35,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Options
-option(BUILD_DOCS "Build library documentation" ON)
+option(BUILD_DOCS "Build library documentation" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
-option(BUILD_EXAMPLES "Build example executables" ON)
+option(BUILD_EXAMPLES "Build example executables" OFF)
 option(BUILD_SHARED_LIBS "Build shared version of the library" OFF)
 
 # Library source
