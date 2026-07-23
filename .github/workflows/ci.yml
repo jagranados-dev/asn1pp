@@ -6,10 +6,10 @@ name: CI - Build and Test
 # Trigger workflow on pushes and pull requests to main/master, as well as version tags
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "develop"]
     tags: ["v*.*.*"]
   pull_request:
-    branches: ["main", "master"]
+    branches: ["main", "develop"]
 
 # Cancel in-progress runs for the same pull request or branch to save CI minutes
 concurrency:
