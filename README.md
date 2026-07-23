@@ -7,15 +7,11 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-green.svg)](https://cmake.org/)
 [![CI - Build and Test](https://github.com/jagranados-dev/asn1pp/actions/workflows/ci.yml/badge.svg)](https://github.com/jagranados-dev/asn1pp/actions/workflows/ci.yml)
 
----
-
 ## 📖 Overview
 
 `asn1pp` is a lightweight, high-performance C++ library designed to provide seamless Basic Encoding Rules (**BER**) decoding and Distinguished Encoding Rules (**DER**) encoding for Abstract Syntax Notation One (**ASN.1**) data structures.
 
 Inspired by industrial-grade cryptographic engines like **Botan 3**, `asn1pp` provides an intuitive **fluent builder pattern** with strict memory safety, non-destructive lookahead parsing, and full compliance with canonical encoding standards.
-
----
 
 ## ✨ Key Features
 
@@ -27,8 +23,6 @@ Inspired by industrial-grade cryptographic engines like **Botan 3**, `asn1pp` pr
 - **Rich Domain Objects:** Out-of-the-box support for arbitrary-precision integers (`Big_Int`), Object Identifiers (`OID`), and an extensible `ASN1_Object` interface for custom domain serialization.
 - **Comprehensive Error Handling:** Safe bounds checking and strict type enforcement backed by a dedicated hierarchy of runtime exceptions (`ASN1_EncodingError`, `ASN1_DecodingError`).
 
----
-
 ## 🛠️ System Requirements
 
 To build and consume `asn1pp`, your development environment must meet the following minimum requirements:
@@ -37,8 +31,6 @@ To build and consume `asn1pp`, your development environment must meet the follow
 - **Build System:** CMake 3.15 or newer.
 - **Testing Framework:** Catch2 v3.15+ (automatically fetched via CMake during test builds).
 - **Documentation (Optional):** Doxygen (to generate HTML/LaTeX API references).
-
----
 
 ## 🚀 Building and Compiling
 
@@ -74,8 +66,6 @@ Or run the test binary directly for detailed Catch2 output:
 ```bash
 ./build/tests/asn1pp_tests
 ```
-
----
 
 ## 💻 Quick Start & Usage
 
@@ -166,8 +156,6 @@ main ( int, char** )
 }
 ```
 
----
-
 ## 📁 Project Structure
 
 ```
@@ -182,8 +170,6 @@ asn1pp/
 │   └── src/asn1pp/        # Implementation files (.cpp)
 └── tests/                 # Catch2 unit test suite
 ```
-
----
 
 ## 📄 License
 
