@@ -2,10 +2,10 @@
 
 **A Modern, Robust, and Fluent C++20 ASN.1 (BER/DER) Encoding and Decoding Library.**
 
-[![CI - Build and Test](https://github.com/jagranados-dev/asn1pp/actions/workflows/ci.yml/badge.svg)](https://github.com/jagranados-dev/asn1pp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Language: C++20](https://img.shields.io/badge/Language-C%2B%2B20-orange.svg)](https://isocpp.org/)
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-green.svg)](https://cmake.org/)
+[![CI - Build and Test](https://github.com/jagranados-dev/asn1pp/actions/workflows/ci.yml/badge.svg)](https://github.com/jagranados-dev/asn1pp/actions/workflows/ci.yml)
 
 ---
 
