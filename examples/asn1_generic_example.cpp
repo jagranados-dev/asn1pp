@@ -25,6 +25,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <sstream>
 
 #include <asn1pp/der_encoder.hpp>
 #include <asn1pp/ber_decoder.hpp>
