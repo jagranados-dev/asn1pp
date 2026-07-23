@@ -46,7 +46,7 @@ The project uses a standard CMake out-of-source build workflow.
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/jagranados-dev/asn1pp.git](https://github.com/jagranados-dev/asn1pp.git)
+git clone https://github.com/jagranados-dev/asn1pp.git
 cd asn1pp
 ```
 
