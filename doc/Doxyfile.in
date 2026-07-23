@@ -1,12 +1,12 @@
 #-------------------------------------------------
-# Información del proyecto
+# PROJECT
 #-------------------------------------------------
 
 PROJECT_NAME           = "@PROJECT_NAME@"
 PROJECT_NUMBER         = "@PROJECT_VERSION@"
 
 #-------------------------------------------------
-# Directorios
+# DIRS
 #-------------------------------------------------
 
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doxygen
@@ -19,7 +19,7 @@ EXCLUDE_PATTERNS       = */build/* \
                          */extern/*
 
 #-------------------------------------------------
-# Extracción de documentación
+# DOC EXTRACTION
 #-------------------------------------------------
 
 EXTRACT_ALL            = YES
@@ -30,26 +30,26 @@ EXTRACT_LOCAL_CLASSES  = YES
 JAVADOC_AUTOBRIEF      = YES
 
 #-------------------------------------------------
-# Optimización para C++
+# C/C++ OPTIMIZATION
 #-------------------------------------------------
 
 OPTIMIZE_OUTPUT_FOR_C  = NO
 
 #-------------------------------------------------
-# Salida HTML
+# HTML
 #-------------------------------------------------
 
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 
 #-------------------------------------------------
-# Salida LATEX/PDF
+# LATEX/PDF
 #-------------------------------------------------
 
 GENERATE_LATEX         = NO
 
 #-------------------------------------------------
-# Diagramas (requiere Graphviz)
+# DIAGRAMS
 #-------------------------------------------------
 
 HAVE_DOT               = @DOXYGEN_HAVE_DOT@
@@ -63,7 +63,7 @@ INCLUDED_BY_GRAPH      = YES
 DOT_IMAGE_FORMAT       = svg
 
 #-------------------------------------------------
-# Ficheros fuente
+# SOURCE FILES
 #-------------------------------------------------
 
 FILE_PATTERNS          = *.h \
@@ -72,14 +72,14 @@ FILE_PATTERNS          = *.h \
                          *.cpp
 
 #-------------------------------------------------
-# Advertencias
+# WARNINGS
 #-------------------------------------------------
 
 WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 
 #-------------------------------------------------
-# Rendimiento
+# PERFORMANCE
 #-------------------------------------------------
 
 QUIET                  = YES
