@@ -62,7 +62,7 @@ namespace asn1pp
         size_t pos = _offset;
         const uint8_t tag_byte = _data [ pos++ ];
 
-        // Parse tag and class
+        // Extract the 5 low-order bits for type tag and 3 high-order bits for tag class
         const auto type_tag = static_cast < ASN1_Type > ( tag_byte & 0x1F );
         const uint8_t class_tag = tag_byte & 0xE0;
 
@@ -76,7 +76,7 @@ namespace asn1pp
             throw ASN1_DecodingError ( "Buffer truncated while reading length byte" );
         }
 
-        // Parse BER/DER length
+        // Parse BER/DER length field (short form vs long form)
         size_t length = 0;
         const uint8_t len_byte = _data [ pos++ ];
 
@@ -239,86 +239,6 @@ namespace asn1pp
     }
 
     BER_Decoder&
-    BER_Decoder::decode_default ( bool& out, bool default_val, ASN1_Type expected_type, ASN1_Class expected_class )
-    {
-        auto hdr = peek_next_header ();
-
-        if ( hdr && hdr->type_tag == expected_type &&
-           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
-        {
-            return decode ( out );
-        }
-
-        out = default_val;
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::decode_default ( uint64_t& out, uint64_t default_val, ASN1_Type expected_type, ASN1_Class expected_class )
-    {
-        auto hdr = peek_next_header ();
-
-        if ( hdr && hdr->type_tag == expected_type &&
-           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
-        {
-            return decode ( out );
-        }
-
-        out = default_val;
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::decode_default ( int64_t& out, int64_t default_val, ASN1_Type expected_type, ASN1_Class expected_class )
-    {
-        auto hdr = peek_next_header ();
-
-        if ( hdr && hdr->type_tag == expected_type &&
-           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
-        {
-            return decode ( out );
-        }
-
-        out = default_val;
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::decode_default ( std::string& out, const std::string& default_val, ASN1_Type expected_type, ASN1_Class expected_class )
-    {
-        auto hdr = peek_next_header ();
-
-        if ( hdr && hdr->type_tag == expected_type &&
-           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
-        {
-            return decode ( out, expected_type, expected_class );
-        }
-
-        out = default_val;
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::decode_default ( std::vector < uint8_t >& out, const std::vector < uint8_t >& default_val, ASN1_Type expected_type, ASN1_Class expected_class )
-    {
-        auto hdr = peek_next_header ();
-
-        if ( hdr && hdr->type_tag == expected_type &&
-           ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
-        {
-            return decode ( out, expected_type, expected_class );
-        }
-
-        out = default_val;
-
-        return *this;
-    }
-
-    BER_Decoder&
     BER_Decoder::decode_null ()
     {
         std::vector < uint8_t > val = get_next_value ( ASN1_Type::NULL_TAG, ASN1_Class::UNIVERSAL );
@@ -363,14 +283,14 @@ namespace asn1pp
     {
         if ( _limits.size () <= 1 )
         {
-            throw ASN1_DecodingError ( "end_cons() called with no open sequence/set" );
+            throw ASN1_DecodingError ( "end_cons() called with no open sequence/set/context scope" );
         }
 
         const size_t scope_limit = _limits.back ();
 
         if ( _offset != scope_limit )
         {
-            throw ASN1_DecodingError ( "Unconsumed bytes remaining in closed SEQUENCE/SET scope" );
+            throw ASN1_DecodingError ( "Unconsumed bytes remaining in closed scope" );
         }
 
         _limits.pop_back ();
@@ -399,6 +319,44 @@ namespace asn1pp
     BER_Decoder::end_explicit ()
     {
         return end_cons ();
+    }
+
+    BER_Decoder&
+    BER_Decoder::start_implicit_cons ( uint8_t tag_number )
+    {
+        BER_ObjectHeader hdr = get_next_header ();
+        if ( hdr.type_tag != static_cast < ASN1_Type > ( tag_number ) || 
+           ( hdr.class_tag & 0xC0u ) != static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) ||
+           ( hdr.class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) == 0 )
+        {
+            throw ASN1_DecodingError ( "Expected CONSTRUCTED IMPLICIT context-specific tag" );
+        }
+
+        _offset += hdr.header_size;
+        _limits.push_back ( _offset + hdr.length );
+
+        return *this;
+    }
+
+    BER_Decoder&
+    BER_Decoder::end_implicit_cons ()
+    {
+        return end_cons ();
+    }
+
+    bool
+    BER_Decoder::has_explicit ( uint8_t tag_number ) const
+    {
+        auto hdr = peek_next_header ();
+        return hdr && hdr->type_tag == static_cast < ASN1_Type > ( tag_number ) &&
+             ( hdr->class_tag & 0xC0u ) == static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) &&
+             ( hdr->class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) != 0;
+    }
+
+    bool
+    BER_Decoder::has_implicit_cons ( uint8_t tag_number ) const
+    {
+        return has_explicit ( tag_number );
     }
 
 } // asn1pp

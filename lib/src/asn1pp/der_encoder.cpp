@@ -33,14 +33,14 @@ namespace asn1pp
 {
 
     std::vector < uint8_t >&
-    DER_Encoder::current_stream()
+    DER_Encoder::current_stream ()
     {
         if ( _subsequences.empty () )
         {
             return _contents;
         }
 
-        return _subsequences.back().contents;
+        return _subsequences.back ().contents;
     }
 
     const std::vector < uint8_t >&
@@ -57,7 +57,7 @@ namespace asn1pp
     std::vector < uint8_t >
     DER_Encoder::get_contents () const
     {
-        if ( !_subsequences.empty() )
+        if ( !_subsequences.empty () )
         {
             throw ASN1_EncodingError ( "Unclosed SEQUENCE/SET at get_contents()" );
         }
@@ -93,7 +93,6 @@ namespace asn1pp
     void
     DER_Encoder::encode_tag ( std::vector < uint8_t >& out, ASN1_Type type_tag, uint8_t class_tag )
     {
-        // Standard low-tag number encoding (tags <= 30)
         const uint8_t tag_byte = class_tag | static_cast < uint8_t > ( type_tag );
         out.push_back ( tag_byte );
     }
@@ -149,7 +148,6 @@ namespace asn1pp
                 val >>= 8;
             }
 
-            // DER integers are signed; if the MSB is set, prepend a 0x00 padding byte
             if ( contents.back () & 0x80 )
             {
                 contents.push_back ( 0x00 );
@@ -169,7 +167,6 @@ namespace asn1pp
             return encode ( static_cast < uint64_t > ( val ), type_tag, class_tag );
         }
 
-        // Handle negative integers via two's complement DER rules
         std::vector < uint8_t > contents;
         int64_t temp = val;
 
@@ -179,7 +176,6 @@ namespace asn1pp
             temp >>= 8;
         } while ( temp != -1 && temp != 0 );
 
-        // Ensure proper sign bit representation
         if ( ( contents.back () & 0x80 ) == 0 )
         {
             contents.push_back ( 0xFF );
@@ -217,64 +213,21 @@ namespace asn1pp
     }
 
     DER_Encoder&
-    DER_Encoder::encode_default ( bool val, bool default_val )
-    {
-        if ( val != default_val )
-        {
-            encode ( val );
-        }
-
-        return *this;
-    }
-
-    DER_Encoder&
-    DER_Encoder::encode_default ( uint64_t val, uint64_t default_val )
-    {
-        if ( val != default_val )
-        {
-            encode ( val );
-        }
-
-        return *this;
-    }
-
-    DER_Encoder&
-    DER_Encoder::encode_default ( int64_t val, int64_t default_val )
-    {
-        if ( val != default_val )
-        {
-            encode ( val );
-        }
-
-        return *this;
-    }
-
-    DER_Encoder&
-    DER_Encoder::encode_default ( std::string_view str, std::string_view default_val, ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode_default ( std::string_view str, std::string_view default_val,
+                                  ASN1_Type type_tag, ASN1_Class class_tag )
     {
         if ( str != default_val )
         {
             encode ( str, type_tag, class_tag );
         }
-
         return *this;
     }
 
     DER_Encoder&
-    DER_Encoder::encode_default ( const char* str, const char* default_val, ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode_default ( const char* str, const char* default_val,
+                                  ASN1_Type type_tag, ASN1_Class class_tag )
     {
         return encode_default ( std::string_view ( str ? str : "" ), std::string_view ( default_val ? default_val : "" ), type_tag, class_tag );
-    }
-
-    DER_Encoder&
-    DER_Encoder::encode_default ( std::span < const uint8_t > bytes, std::span < const uint8_t > default_val, ASN1_Type type_tag, ASN1_Class class_tag )
-    {
-        if ( !std::equal ( bytes.begin (), bytes.end (), default_val.begin (), default_val.end () ) )
-        {
-            encode ( bytes, type_tag, class_tag );
-        }
-
-        return *this;
     }
 
     DER_Encoder&
@@ -308,11 +261,11 @@ namespace asn1pp
     {
         if ( _subsequences.empty () )
         {
-            throw ASN1_EncodingError ( "end_cons() called without matching start_sequence/set" );
+            throw ASN1_EncodingError ( "end_cons() called without matching start_sequence/set/explicit" );
         }
 
         Subsequence sub = std::move ( _subsequences.back () );
-        _subsequences.pop_back();
+        _subsequences.pop_back ();
 
         return add_object ( sub.tag, sub.class_tag, sub.contents );
     }
@@ -326,6 +279,19 @@ namespace asn1pp
 
     DER_Encoder&
     DER_Encoder::end_explicit ()
+    {
+        return end_cons ();
+    }
+
+    DER_Encoder&
+    DER_Encoder::start_implicit_cons ( uint8_t tag_number )
+    {
+        start_cons ( static_cast < ASN1_Type > ( tag_number ), static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) );
+        return *this;
+    }
+
+    DER_Encoder&
+    DER_Encoder::end_implicit_cons ()
     {
         return end_cons ();
     }
