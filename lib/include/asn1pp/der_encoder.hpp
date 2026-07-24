@@ -328,6 +328,26 @@ namespace asn1pp
             return *this;
         }
 
+/**
+         * @brief Encodes an optional value or container using CONSTRUCTED IMPLICIT context-specific tagging.
+         * 
+         * Properly replaces the underlying universal tag (e.g., SET OF 0x31) with the context tag (e.g., 0xA0)
+         * without introducing explicit wrapper sequences.
+         * @tparam T The target container or object type.
+         * @param tag_number The context-specific tag number (e.g., 0 for [0]).
+         * @param obj The optional container to inspect and serialize.
+         * @return Reference to this DER_Encoder to allow fluent method chaining.
+         */
+        template < typename T >
+        DER_Encoder& encode_optional_implicit ( uint8_t tag_number, const std::optional < T >& obj )
+        {
+            if ( obj.has_value () )
+            {
+                encode_implicit ( *obj, tag_number );
+            }
+            return *this;
+        }
+
         /**
          * @brief Encodes an ASN.1 NULL object (tag 0x05, zero length).
          * @return Reference to this DER_Encoder to allow fluent method chaining.

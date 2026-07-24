@@ -373,6 +373,41 @@ TEST_CASE ( "Decode OPTIONAL values handle both present and missing elements via
     REQUIRE ( !opt_bool.has_value () ); // Must be reset to nullopt because tag was absent
 }
 
+TEST_CASE ( "Encode and decode optional implicit constructed collections", "[dec-opt-implicit]" )
+{
+    // Simulate an Attributes set: [0] IMPLICIT SET OF INTEGER OPTIONAL
+    std::optional < Set_Of < uint64_t > > opt_set_present;
+    opt_set_present.emplace ();
+    opt_set_present->push_back ( 100 );
+    opt_set_present->push_back ( 200 );
+
+    std::optional < Set_Of < uint64_t > > opt_set_absent = std::nullopt;
+
+    DER_Encoder encoder;
+    encoder.start_sequence ()
+               .encode_optional_implicit ( 0, opt_set_present )
+               .encode_optional_implicit ( 1, opt_set_absent )
+           .end_cons ();
+
+    const std::vector < uint8_t > der_buffer = encoder.get_contents ();
+
+    std::optional < Set_Of < uint64_t > > dec_set_0;
+    std::optional < Set_Of < uint64_t > > dec_set_1;
+
+    BER_Decoder decoder ( der_buffer );
+    decoder.start_sequence ()
+               .decode_optional_implicit ( 0, dec_set_0 )
+               .decode_optional_implicit ( 1, dec_set_1 )
+           .end_cons ();
+
+    REQUIRE ( dec_set_0.has_value () );
+    REQUIRE ( dec_set_0->size () == 2 );
+    REQUIRE ( ( *dec_set_0 ) [ 0 ] == 100 );
+    REQUIRE ( ( *dec_set_0 ) [ 1 ] == 200 );
+    REQUIRE ( !dec_set_1.has_value () );
+    REQUIRE ( !decoder.more_items () );
+}
+
 //-----------------------------------------------------------------------------
 // 7. DECODER ERROR HANDLING AND BOUNDARY CHECKS
 //-----------------------------------------------------------------------------

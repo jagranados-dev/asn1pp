@@ -26,7 +26,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Project
 project(asn1pp 
-    VERSION 0.2.3
+    VERSION 0.2.5
     LANGUAGES CXX
 )
 

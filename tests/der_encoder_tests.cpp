@@ -304,6 +304,83 @@ TEST_CASE ( "Encode std::optional cleanly ignores nullopt values", "[enc-optiona
     REQUIRE ( encoder.get_contents () == expected );
 }
 
+TEST_CASE ( "DER_Encoder serializes optional implicit constructed collections with exact X.690 byte output", "[enc-opt-implicit]" )
+{
+    SECTION ( "When the optional collection has values, emits correct CONSTRUCTED context-specific tag and sorted DER bytes" )
+    {
+        // Simulate: [0] IMPLICIT SET OF INTEGER OPTIONAL
+        std::optional < Set_Of < uint64_t > > opt_set;
+        opt_set.emplace ();
+        opt_set->push_back ( 5 );
+        opt_set->push_back ( 10 );
+
+        DER_Encoder encoder;
+        encoder.encode_optional_implicit ( 0, opt_set );
+
+        const std::vector < uint8_t > result = encoder.get_contents ();
+
+        // Expected X.690 calculation:
+        // Tag byte for [0] IMPLICIT CONSTRUCTED:
+        //   Class: CONTEXT_SPECIFIC (0x80) | Form: CONSTRUCTED (0x20) | Tag Number: 0 = 0xA0
+        // Length of inner SET contents:
+        //   INTEGER 5  -> 02 01 05 (3 bytes)
+        //   INTEGER 10 -> 02 01 0A (3 bytes)
+        //   Total internal length = 6 (0x06)
+        // Final canonical DER stream: A0 06 02 01 05 02 01 0A
+        const std::vector < uint8_t > expected_bytes = {
+            0xA0, 0x06,
+            0x02, 0x01, 0x05,
+            0x02, 0x01, 0x0A
+        };
+
+        REQUIRE ( result == expected_bytes );
+    }
+
+    SECTION ( "When the optional collection is std::nullopt, emits zero bytes without corrupting stream" )
+    {
+        std::optional < Set_Of < uint64_t > > opt_set = std::nullopt;
+
+        DER_Encoder encoder;
+        encoder.encode_optional_implicit ( 0, opt_set );
+
+        REQUIRE ( encoder.get_contents ().empty () );
+    }
+
+    SECTION ( "When chaining multiple optional implicit collections, preserves exact sequence order and omissions" )
+    {
+        // [0] IMPLICIT present, [1] IMPLICIT absent, [2] IMPLICIT present
+        std::optional < Set_Of < uint64_t > > set_0;
+        set_0.emplace ();
+        set_0->push_back ( 1 ); // 02 01 01 (3 bytes)
+
+        std::optional < Set_Of < uint64_t > > set_1 = std::nullopt;
+
+        std::optional < Set_Of < uint64_t > > set_2;
+        set_2.emplace ();
+        set_2->push_back ( 2 ); // 02 01 02 (3 bytes)
+
+        DER_Encoder encoder;
+        encoder.start_sequence ()
+                   .encode_optional_implicit ( 0, set_0 ) // Should emit tag 0xA0
+                   .encode_optional_implicit ( 1, set_1 ) // Should be skipped completely
+                   .encode_optional_implicit ( 2, set_2 ) // Should emit tag 0xA2
+               .end_cons ();
+
+        const std::vector < uint8_t > result = encoder.get_contents ();
+
+        // Expected SEQUENCE (0x30) of length 10 (0x0A):
+        //   [0] IMPLICIT -> A0 03 02 01 01
+        //   [2] IMPLICIT -> A2 03 02 01 02
+        const std::vector < uint8_t > expected_bytes = {
+            0x30, 0x0A,
+            0xA0, 0x03, 0x02, 0x01, 0x01,
+            0xA2, 0x03, 0x02, 0x01, 0x02
+        };
+
+        REQUIRE ( result == expected_bytes );
+    }
+}
+
 //-----------------------------------------------------------------------------
 // 8. ENCODER ERROR HANDLING
 //-----------------------------------------------------------------------------

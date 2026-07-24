@@ -245,6 +245,37 @@ namespace asn1pp
             return *this;
         }
 
+/**
+         * @brief Decodes an optional CONSTRUCTED IMPLICIT context-specific container (e.g., [0] IMPLICIT SET OF).
+         * 
+         * Inspects the stream without advancing; if the expected context tag is present, it dynamically
+         * restores the expected universal tag (e.g., SET or BIT_STRING) and decodes the container.
+         * @tparam T The target container or object type (e.g., Set_Of<Attribute>, Bit_String).
+         * @param tag_number The expected context-specific tag number (e.g., 0 for [0]).
+         * @param out Reference to the optional variable to populate or reset.
+         * @param expected_type The underlying universal tag to restore (defaults to SET for Attribute collections).
+         * @return Reference to this BER_Decoder to allow fluent method chaining.
+         */
+        template < typename T >
+        BER_Decoder& decode_optional_implicit ( uint8_t tag_number,
+                                                std::optional < T >& out,
+                                                ASN1_Type expected_type = ASN1_Type::SET )
+        {
+            auto hdr = peek_next_header ();
+            if ( hdr && hdr->type_tag == static_cast < ASN1_Type > ( tag_number ) &&
+               ( hdr->class_tag & 0xC0u ) == static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) )
+            {
+                T val;
+                decode_implicit ( val, tag_number, expected_type );
+                out = std::move ( val );
+            }
+            else
+            {
+                out.reset ();
+            }
+            return *this;
+        }
+
         /**
          * @brief Decodes an EXPLICIT context-specific tagged value, falling back to default_val if the tag is absent.
          * @tparam T The target variable type.
