@@ -76,6 +76,14 @@ namespace asn1pp
          */
         explicit BER_Decoder ( const std::vector < uint8_t >& data );
 
+        /**
+         * @brief Deleted rvalue constructor to strictly prevent Use-After-Free and dangling span bugs.
+         * 
+         * Storing a std::span view over a temporary rvalue vector (e.g., BER_Decoder(encoder.get_contents()))
+         * causes the underlying buffer to be deallocated immediately after the constructor statement completes.
+         */
+        explicit BER_Decoder ( const std::vector < uint8_t >&& data ) = delete;
+
         ~BER_Decoder () = default;
 
         /**
@@ -332,10 +340,12 @@ namespace asn1pp
                                        ASN1_Class expected_class = ASN1_Class::UNIVERSAL )
         {
             auto hdr = peek_next_header ();
+
             if ( hdr && hdr->type_tag == expected_type &&
                ( hdr->class_tag & 0xC0u ) == ( static_cast < uint8_t > ( expected_class ) & 0xC0u ) )
             {
                 T val;
+
                 if constexpr ( std::is_base_of_v < ASN1_Object, T > )
                 {
                     decode ( val );
@@ -344,12 +354,41 @@ namespace asn1pp
                 {
                     decode ( val, expected_type, expected_class );
                 }
+
                 out = std::move ( val );
             }
             else
             {
                 out.reset ();
             }
+
+            return *this;
+        }
+
+        /**
+         * @brief Decodes an optional value based on scope item availability without strict tag matching.
+         * 
+         * Ideal for Open Types (such as Raw_Value / ANY DEFINED BY) or trailing optional domain objects
+         * where any present TLV within the remaining structural scope should be consumed.
+         * Establishes perfect ergonomic symmetry with DER_Encoder::encode_optional(val).
+         * @tparam T The target data type to decode.
+         * @param out Reference to the optional variable to populate or reset to nullopt.
+         * @return Reference to this BER_Decoder to allow fluent method chaining.
+         */
+        template < typename T >
+        BER_Decoder& decode_optional ( std::optional < T >& out )
+        {
+            if ( more_items () )
+            {
+                T val;
+                decode ( val );
+                out = std::move ( val );
+            }
+            else
+            {
+                out.reset ();
+            }
+
             return *this;
         }
 

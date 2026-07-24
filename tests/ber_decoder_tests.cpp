@@ -32,6 +32,7 @@
 #include <asn1pp/asn1_types.hpp>
 #include <asn1pp/ber_decoder.hpp>
 #include <asn1pp/ia5_string.hpp>
+#include <asn1pp/oid.hpp>
 #include <asn1pp/printable_string.hpp>
 #include <asn1pp/raw_value.hpp>
 #include <asn1pp/sequence_of.hpp>
@@ -365,4 +366,89 @@ TEST_CASE ( "Decoder throws ASN1_DecodingError on unconsumed bytes when closing 
     
     // Intentionally attempting to close scope before decoding the second integer
     REQUIRE_THROWS_AS ( decoder.end_cons (), ASN1_DecodingError );
+}
+
+//-----------------------------------------------------------------------------
+// 8. ONE-ARGUMENT OPTIONAL AND OPEN TYPE (RAW_VALUE) DECODING
+//-----------------------------------------------------------------------------
+
+TEST_CASE ( "Decode 1-argument optional cleanly captures trailing Open Types (Raw_Value)", "[dec-opt-open-type]" )
+{
+    SECTION ( "When the optional Open Type is present at the end of a SEQUENCE" )
+    {
+        // Build a SEQUENCE with an INTEGER (1) and an open TLV (OID 2.5.4.3)
+        DER_Encoder encoder;
+        encoder.start_sequence ()
+                   .encode ( static_cast < uint64_t > ( 1 ) )
+                   .encode ( OID ( "2.5.4.3" ) )
+               .end_cons ();
+
+        const std::vector < uint8_t > der_buffer = encoder.get_contents (); // Explicit lvalue lifetime!
+        uint64_t int_val = 0;
+        std::optional < Raw_Value > opt_raw = std::nullopt;
+
+        BER_Decoder decoder ( der_buffer );
+        decoder.start_sequence ()
+                   .decode ( int_val )
+                   // Uses the new 1-arg overload: consumes remaining TLV without tag assertions
+                   .decode_optional ( opt_raw )
+               .end_cons ();
+
+        REQUIRE ( int_val == 1ULL );
+        REQUIRE ( opt_raw.has_value () );
+        REQUIRE ( opt_raw->get_bytes () == std::vector < uint8_t > ( { 0x06, 0x03, 0x55, 0x04, 0x03 } ) );
+        REQUIRE ( !decoder.more_items () );
+    }
+
+    SECTION ( "When the optional Open Type is omitted from the SEQUENCE" )
+    {
+        // Build a SEQUENCE containing ONLY the INTEGER (1)
+        DER_Encoder encoder;
+        encoder.start_sequence ()
+                   .encode ( static_cast < uint64_t > ( 1 ) )
+               .end_cons ();
+
+        const std::vector < uint8_t > der_buffer = encoder.get_contents (); // Explicit lvalue lifetime!
+        uint64_t int_val = 0;
+        // Pre-populate with a bogus value to prove it gets reset to nullopt
+        std::optional < Raw_Value > opt_raw = Raw_Value ( std::vector < uint8_t > ( { 0x05, 0x00 } ) );
+
+        BER_Decoder decoder ( der_buffer );
+        decoder.start_sequence ()
+                   .decode ( int_val )
+                   // Scope is empty, must safely reset to nullopt
+                   .decode_optional ( opt_raw )
+               .end_cons ();
+
+        REQUIRE ( int_val == 1ULL );
+        REQUIRE ( !opt_raw.has_value () );
+        REQUIRE ( !decoder.more_items () );
+    }
+}
+
+TEST_CASE ( "Decode 1-argument optional establishes symmetry with Encoder for standard objects", "[dec-opt-symmetry]" )
+{
+    std::optional < OID > opt_oid_present = OID ( "1.2.840.113549.1.1.1" );
+    std::optional < OID > opt_oid_absent = std::nullopt;
+
+    DER_Encoder encoder;
+    encoder.start_sequence ()
+               .encode_optional ( opt_oid_present )
+               .encode_optional ( opt_oid_absent )
+           .end_cons ();
+
+    const std::vector < uint8_t > der_buffer = encoder.get_contents (); // Explicit lvalue lifetime!
+    std::optional < OID > dec_oid_1;
+    std::optional < OID > dec_oid_2 = OID ( "2.5.4.3" ); // Should be reset
+
+    BER_Decoder decoder ( der_buffer );
+    decoder.start_sequence ()
+               .decode_optional ( dec_oid_1 )
+               .decode_optional ( dec_oid_2 )
+           .end_cons ();
+
+    REQUIRE ( dec_oid_1.has_value () );
+    REQUIRE ( *dec_oid_1 == *opt_oid_present );
+    REQUIRE ( !dec_oid_2.has_value () );
+    REQUIRE ( !decoder.more_items () );
 }
