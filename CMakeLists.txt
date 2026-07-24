@@ -26,7 +26,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Project
 project(asn1pp 
-    VERSION 0.2.0
+    VERSION 0.2.2
     LANGUAGES CXX
 )
 
@@ -34,27 +34,34 @@ project(asn1pp
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Top-level/Submodule detection
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(ASN1PP_IS_TOP_LEVEL ON)
+else()
+    set(ASN1PP_IS_TOP_LEVEL OFF)
+endif()
+
 # Options
-option(BUILD_DOCS "Build library documentation" OFF)
-option(BUILD_TESTS "Build unit tests" ON)
-option(BUILD_EXAMPLES "Build example executables" ON)
-option(BUILD_SHARED_LIBS "Build shared version of the library" OFF)
+option(ASN1PP_BUILD_DOCS     "Build library documentation"         OFF)
+option(ASN1PP_BUILD_TESTS    "Build unit tests"                    ${ASN1PP_IS_TOP_LEVEL})
+option(ASN1PP_BUILD_EXAMPLES "Build example executables"           ${ASN1PP_IS_TOP_LEVEL})
+option(BUILD_SHARED_LIBS     "Build shared version of the library" OFF)
 
 # Library source
 add_subdirectory(lib)
 
 # Library unit tests
-if(BUILD_TESTS)
+if(ASN1PP_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
 # Library examples
-if(BUILD_EXAMPLES)
+if(ASN1PP_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
 # Library optional documentation
-if(BUILD_DOCS)
+if(ASN1PP_BUILD_DOCS)
     find_package(Doxygen REQUIRED)
     find_program(DOT_EXECUTABLE dot)
 
