@@ -26,20 +26,33 @@
 file(GLOB_RECURSE LIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-# Static library output
+# -----------------------------------------------------------------------------
+# 1. STATIC LIBRARY TARGET
+# -----------------------------------------------------------------------------
 add_library(ASN1PP_STATIC_LIB STATIC ${LIB_SOURCES} ${LIB_HEADERS})
+
 target_include_directories(ASN1PP_STATIC_LIB
    PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-set_target_properties(ASN1PP_STATIC_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
-# Shared library output
+set_target_properties(ASN1PP_STATIC_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+add_library(asn1pp::static ALIAS ASN1PP_STATIC_LIB)
+
+# -----------------------------------------------------------------------------
+# 2. SHARED LIBRARY TARGET (OPTIONAL)
+# -----------------------------------------------------------------------------
 if (BUILD_SHARED_LIBS)
    add_library(ASN1PP_SHARED_LIB SHARED ${LIB_SOURCES} ${LIB_HEADERS})
+
    target_include_directories(ASN1PP_SHARED_LIB
       PUBLIC
          ${CMAKE_CURRENT_SOURCE_DIR}/include
    )
+
    set_target_properties(ASN1PP_SHARED_LIB PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+   add_library(asn1pp::shared ALIAS ASN1PP_SHARED_LIB)
+   add_library(asn1pp::asn1pp ALIAS ASN1PP_SHARED_LIB)
+else()
+   add_library(asn1pp::asn1pp ALIAS ASN1PP_STATIC_LIB)
 endif()

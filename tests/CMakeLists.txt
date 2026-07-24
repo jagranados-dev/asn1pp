@@ -38,7 +38,7 @@ add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
 target_link_libraries(${PROJECT_NAME}_tests
     PRIVATE
         Catch2::Catch2WithMain
-        ASN1PP_STATIC_LIB
+        asn1pp::static
 )
 
 # Heredar includes de la lib automáticamente

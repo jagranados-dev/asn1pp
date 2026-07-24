@@ -31,6 +31,6 @@ foreach(EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
 
     target_link_libraries(${EXAMPLE_NAME}
        PRIVATE
-          ASN1PP_STATIC_LIB
+          asn1pp::static
     )
 endforeach()
