@@ -230,6 +230,60 @@ TEST_CASE ( "Decode Sequence_Of and Set_Of collections cleanly populate containe
     REQUIRE ( !decoder.more_items () );
 }
 
+TEST_CASE ( "Set_Of container supports direct index access via operator[] and at()", "[dec-collections][indexing]" )
+{
+    // A SET OF containing three integers
+    const std::vector < uint8_t > test_vector = {
+        0x31, 0x09,         // SET OF (length 9)
+        0x02, 0x01, 0x0A,   //   INTEGER 10
+        0x02, 0x01, 0x14,   //   INTEGER 20
+        0x02, 0x01, 0x1E    //   INTEGER 30
+    };
+
+    Set_Of < uint64_t > set_of;
+    BER_Decoder decoder ( test_vector );
+    decoder.decode ( set_of );
+
+    REQUIRE ( set_of.size () == 3 );
+    
+    // Verify direct index access via operator[]
+    REQUIRE ( set_of [ 0 ] == 10ULL );
+    REQUIRE ( set_of [ 1 ] == 20ULL );
+    REQUIRE ( set_of [ 2 ] == 30ULL );
+
+    // Verify checked index access via at()
+    REQUIRE ( set_of.at ( 0 ) == 10ULL );
+    REQUIRE ( set_of.at ( 2 ) == 30ULL );
+    REQUIRE_THROWS_AS ( set_of.at ( 99 ), std::out_of_range );
+}
+
+TEST_CASE ( "Sequence_Of container supports direct index access via operator[] and at()", "[dec-collections][indexing]" )
+{
+    // A SEQUENCE OF containing three integers in strict specific order
+    const std::vector < uint8_t > test_vector = {
+        0x30, 0x09,         // SEQUENCE OF (length 9)
+        0x02, 0x01, 0x64,   //   INTEGER 100
+        0x02, 0x01, 0x0A,   //   INTEGER 10
+        0x02, 0x01, 0x32    //   INTEGER 50
+    };
+
+    Sequence_Of < uint64_t > seq_of;
+    BER_Decoder decoder ( test_vector );
+    decoder.decode ( seq_of );
+
+    REQUIRE ( seq_of.size () == 3 );
+    
+    // Verify direct index access via operator[] (preserves original sequence order)
+    REQUIRE ( seq_of [ 0 ] == 100ULL );
+    REQUIRE ( seq_of [ 1 ] == 10ULL );
+    REQUIRE ( seq_of [ 2 ] == 50ULL );
+
+    // Verify checked index access via at()
+    REQUIRE ( seq_of.at ( 0 ) == 100ULL );
+    REQUIRE ( seq_of.at ( 2 ) == 50ULL );
+    REQUIRE_THROWS_AS ( seq_of.at ( 99 ), std::out_of_range );
+}
+
 //-----------------------------------------------------------------------------
 // 5. CONTEXT-SPECIFIC TAGGING AND HEADER INSPECTION
 //-----------------------------------------------------------------------------

@@ -96,6 +96,9 @@ namespace asn1pp
         T& operator[] ( size_t idx ) { return _elements [ idx ]; }
         const T& operator[] ( size_t idx ) const { return _elements [ idx ]; }
 
+        T& at ( size_t idx ) { return _elements.at ( idx ); }
+        const T& at ( size_t idx ) const { return _elements.at ( idx ); }
+
         [[nodiscard]] bool operator== ( const Sequence_Of& other ) const noexcept { return _elements == other._elements; }
         [[nodiscard]] bool operator!= ( const Sequence_Of& other ) const noexcept { return !( *this == other ); }
     private:
