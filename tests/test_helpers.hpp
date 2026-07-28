@@ -22,35 +22,47 @@
  * SOFTWARE.
  *********************************************************************************/
 
-#ifndef __ASN1PP_IA5_STRING_HPP_
-#define __ASN1PP_IA5_STRING_HPP_
+#ifndef __ASN1PP_TEST_HELPERS_HPP_
+#define __ASN1PP_TEST_HELPERS_HPP_
 
-#include <iosfwd>
+#include <cstdint>
+#include <initializer_list>
+#include <span>
 #include <string>
-#include <string_view>
+#include <vector>
 
-#include <asn1pp/asn1_object.hpp>
+#include <asn1pp/asn1pp.hpp>
 
-namespace asn1pp
+namespace asn1pp::test
 {
-    
-    class IA5_String : public ASN1_Object
+
+    inline std::vector < uint8_t >
+    bytes ( std::initializer_list < uint8_t > value )
     {
-    public:
-        IA5_String () = default;
-        explicit IA5_String (std::string_view value);
-        [[nodiscard]] const std::string& value () const noexcept;
-        void assign (std::string_view value);
-        void encode_into (DER_Encoder& to) const override;
-        void decode_from (BER_Decoder& from) override;
-        bool operator== (const IA5_String& other) const noexcept;
-        friend std::ostream& operator<< (std::ostream& stream, const IA5_String& value);
+        return std::vector < uint8_t > ( value );
+    }
 
-    private:
-        static void validate (std::string_view value);
-        std::string _value;
-    };
+    template < typename T >
+    std::vector < uint8_t >
+    encode ( const T& value )
+    {
+        DER_Encoder encoder;
+        encoder.encode ( value );
+        return encoder.take_contents ();
+    }
 
-} // asn1pp
+    inline bool
+    equal_oid ( const OID& lhs, const OID& rhs )
+    {
+        return lhs.arcs () == rhs.arcs ();
+    }
 
-#endif // __ASN1PP_IA5_STRING_HPP_
+    inline bool
+    equal_time ( const ASN1_Time& lhs, const ASN1_Time& rhs )
+    {
+        return lhs.type () == rhs.type () && lhs.value () == rhs.value ();
+    }
+
+} // asn1pp::test
+
+#endif // __ASN1PP_TEST_HELPERS_HPP_

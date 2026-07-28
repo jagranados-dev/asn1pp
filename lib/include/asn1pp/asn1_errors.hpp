@@ -25,36 +25,57 @@
 #ifndef __ASN1PP_ASN1_ERRORS_HPP_
 #define __ASN1PP_ASN1_ERRORS_HPP_
 
+#include <cstddef>
 #include <stdexcept>
 #include <string>
 
 namespace asn1pp
 {
 
-    class ASN1_InvalidArgument : public std::runtime_error
+    enum class ASN1_ErrorCode
     {
-    public:
-        explicit ASN1_InvalidArgument ( const std::string& msg )
-            : std::runtime_error ( "ASN.1 Invalid Argument: " + msg )
-        {}
+        INVALID_ARGUMENT,
+        TRUNCATED_INPUT,
+        INVALID_TAG,
+        INVALID_LENGTH,
+        TAG_MISMATCH,
+        INVALID_VALUE,
+        NON_CANONICAL_DER,
+        LIMIT_EXCEEDED,
+        UNCONSUMED_DATA,
+        INVALID_STATE
     };
 
-    class ASN1_EncodingError : public std::runtime_error
+    class ASN1_Error : public std::runtime_error
     {
     public:
-        explicit ASN1_EncodingError ( const std::string& msg )
-            : std::runtime_error ( "ASN.1 Encoding Error: " + msg )
-        {}
+        ASN1_Error (ASN1_ErrorCode code, size_t offset, const std::string& message);
+        [[nodiscard]] ASN1_ErrorCode code () const noexcept;
+        [[nodiscard]] size_t offset () const noexcept;
+
+    private:
+        ASN1_ErrorCode _code;
+        size_t _offset;
     };
 
-    class ASN1_DecodingError : public std::runtime_error
+    class ASN1_InvalidArgument : public ASN1_Error
     {
     public:
-        explicit ASN1_DecodingError ( const std::string& msg )
-            : std::runtime_error ( "ASN.1 Decoding Error: " + msg )
-        {}
+        explicit ASN1_InvalidArgument (const std::string& message);
     };
 
+    class ASN1_EncodingError : public ASN1_Error
+    {
+    public:
+        ASN1_EncodingError (ASN1_ErrorCode code, const std::string& message);
+    };
+
+    class ASN1_DecodingError : public ASN1_Error
+    {
+    public:
+        ASN1_DecodingError (ASN1_ErrorCode code, size_t offset, const std::string& message);
+    };
+    
 } // asn1pp
 
 #endif // __ASN1PP_ASN1_ERRORS_HPP_

@@ -1,12 +1,12 @@
 #-------------------------------------------------
-# PROJECT
+# Información del proyecto
 #-------------------------------------------------
 
 PROJECT_NAME           = "@PROJECT_NAME@"
 PROJECT_NUMBER         = "@PROJECT_VERSION@"
 
 #-------------------------------------------------
-# DIRS
+# Directorios
 #-------------------------------------------------
 
 OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doxygen
@@ -19,37 +19,37 @@ EXCLUDE_PATTERNS       = */build/* \
                          */extern/*
 
 #-------------------------------------------------
-# DOC EXTRACTION
+# Extracción de documentación
 #-------------------------------------------------
 
 EXTRACT_ALL            = YES
-EXTRACT_PRIVATE        = YES
-EXTRACT_STATIC         = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
 EXTRACT_LOCAL_CLASSES  = YES
 
 JAVADOC_AUTOBRIEF      = YES
 
 #-------------------------------------------------
-# C/C++ OPTIMIZATION
+# Optimización para C++
 #-------------------------------------------------
 
 OPTIMIZE_OUTPUT_FOR_C  = NO
 
 #-------------------------------------------------
-# HTML
+# Salida HTML
 #-------------------------------------------------
 
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 
 #-------------------------------------------------
-# LATEX/PDF
+# Salida LATEX/PDF
 #-------------------------------------------------
 
 GENERATE_LATEX         = NO
 
 #-------------------------------------------------
-# DIAGRAMS
+# Diagramas (requiere Graphviz)
 #-------------------------------------------------
 
 HAVE_DOT               = @DOXYGEN_HAVE_DOT@
@@ -63,7 +63,7 @@ INCLUDED_BY_GRAPH      = YES
 DOT_IMAGE_FORMAT       = svg
 
 #-------------------------------------------------
-# SOURCE FILES
+# Ficheros fuente
 #-------------------------------------------------
 
 FILE_PATTERNS          = *.h \
@@ -72,14 +72,24 @@ FILE_PATTERNS          = *.h \
                          *.cpp
 
 #-------------------------------------------------
-# WARNINGS
+# Advertencias
 #-------------------------------------------------
 
 WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 
 #-------------------------------------------------
-# PERFORMANCE
+# Rendimiento
 #-------------------------------------------------
 
 QUIET                  = YES
+
+# Public API quality
+EXTRACT_ALL             = NO
+HIDE_UNDOC_MEMBERS      = NO
+HIDE_UNDOC_CLASSES      = NO
+WARN_AS_ERROR           = FAIL_ON_WARNINGS
+WARN_NO_PARAMDOC        = NO
+FULL_PATH_NAMES         = NO
+STRIP_FROM_PATH         = @CMAKE_SOURCE_DIR@
+USE_MDFILE_AS_MAINPAGE  = @CMAKE_SOURCE_DIR@/README.md

@@ -25,7 +25,7 @@
 #ifndef __ASN1PP_SEQUENCE_OF_HPP_
 #define __ASN1PP_SEQUENCE_OF_HPP_
 
-#include <initializer_list>
+#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -36,73 +36,56 @@
 namespace asn1pp
 {
 
-    /**
-     * @brief Represents an ASN.1 SEQUENCE OF container (Ordered collection of elements).
-     * @tparam T The element type (must be supported by DER_Encoder/BER_Decoder or derive from ASN1_Object).
-     */
     template < typename T >
-    class Sequence_Of final : public ASN1_Object
+    class Sequence_Of : public ASN1_Object
     {
     public:
-        using value_type = T;
-        using iterator = typename std::vector < T >::iterator;
-        using const_iterator = typename std::vector < T >::const_iterator;
-
-        Sequence_Of () = default;
-        explicit Sequence_Of ( std::vector < T > elements ) : _elements ( std::move ( elements ) ) {}
-        Sequence_Of ( std::initializer_list < T > elements ) : _elements ( elements ) {}
-        ~Sequence_Of () override = default;
-
-        Sequence_Of ( const Sequence_Of& ) = default;
-        Sequence_Of& operator= ( const Sequence_Of& ) = default;
-        Sequence_Of ( Sequence_Of&& ) noexcept = default;
-        Sequence_Of& operator= ( Sequence_Of&& ) noexcept = default;
-
-        void encode_into ( DER_Encoder& to ) const override
+        std::vector < T > values;
+        void
+        encode_into (DER_Encoder& to) const override
         {
-            to.start_sequence ();
-            for ( const auto& elem : _elements )
-            {
-                to.encode ( elem );
-            }
-            to.end_cons ();
+            to.encode_sequence (
+                [&] (DER_Encoder& child)
+                {
+                    for (const T& value : values)
+                    {
+                        child.encode (value);
+                    }
+                });
         }
 
-        void decode_from ( BER_Decoder& from ) override
+        void
+        decode_from (BER_Decoder& from) override
         {
-            _elements.clear ();
-            from.start_sequence ();
-            while ( from.more_items () )
-            {
-                T elem;
-                from.decode ( elem );
-                _elements.push_back ( std::move ( elem ) );
-            }
-            from.end_cons ();
+            std::vector < T > result;
+            from.decode_sequence (
+                [&] (BER_Decoder& child)
+                {
+                    while (child.more_items ())
+                    {
+                        T value;
+                        child.decode (value);
+                        result.push_back (std::move (value));
+                    }
+                });
+            values = std::move (result);
+        }
+        bool operator== (const Sequence_Of& other) const
+        {
+            return values == other.values;
         }
 
-        void push_back ( const T& elem ) { _elements.push_back ( elem ); }
-        void push_back ( T&& elem ) { _elements.push_back ( std::move ( elem ) ); }
-        
-        [[nodiscard]] size_t size () const noexcept { return _elements.size (); }
-        [[nodiscard]] bool empty () const noexcept { return _elements.empty (); }
-        void clear () noexcept { _elements.clear (); }
-
-        iterator begin () noexcept { return _elements.begin (); }
-        iterator end () noexcept { return _elements.end (); }
-        [[nodiscard]] const_iterator begin () const noexcept { return _elements.begin (); }
-        [[nodiscard]] const_iterator end () const noexcept { return _elements.end (); }
-
-        T& operator[] ( size_t idx ) { return _elements [ idx ]; }
-        const T& operator[] ( size_t idx ) const { return _elements [ idx ]; }
-
-        T& at ( size_t idx ) { return _elements.at ( idx ); }
-        const T& at ( size_t idx ) const { return _elements.at ( idx ); }
-
-        [[nodiscard]] bool operator== ( const Sequence_Of& other ) const noexcept { return _elements == other._elements; }
-        [[nodiscard]] bool operator!= ( const Sequence_Of& other ) const noexcept { return !( *this == other ); }
-    private:
-        std::vector < T > _elements;
+        friend std::ostream& operator<< (std::ostream& stream, const Sequence_Of& value)
+        {
+            stream << '[';
+            for (size_t index = 0; index < value.values.size (); ++index)
+            {
+                if (index != 0) stream << ", ";
+                stream << value.values[index];
+            }
+            stream << ']';
+            return stream;
+        }
     };
 
 } // asn1pp

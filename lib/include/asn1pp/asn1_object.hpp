@@ -34,39 +34,14 @@ namespace asn1pp
     class DER_Encoder;
     class BER_Decoder;
 
-    /**
-     * @brief Universal ASN.1 Object
-     */
     class ASN1_Object
     {
     public:
-        ASN1_Object () = default;
-        ASN1_Object ( const ASN1_Object& ) = default;
-        ASN1_Object& operator= ( const ASN1_Object& ) = default;
-        ASN1_Object ( ASN1_Object&& ) = default;
         virtual ~ASN1_Object () = default;
-
-        /**
-         * @brief Encode whatever this object is into to
-         * @param to the DER_Encoder that will be written to
-         */
-        virtual void encode_into ( DER_Encoder& to ) const = 0;
-
-        /**
-         * @brief Decode whatever this object is from from
-         * @param from the BER_Decoder that will be read from
-         */
-        virtual void decode_from ( BER_Decoder& from ) = 0;
-
-        /**
-         * @brief Return the encoding of this object. 
-         * 
-         * This is a convenience method when just one object needs 
-         * to be serialized. Use DER_Encoder for complicated encodings.
-         */
-        std::vector < uint8_t > BER_encode () const;
-
-        ASN1_Object& operator= ( ASN1_Object&& ) = default;
+        virtual void encode_into (DER_Encoder& to) const = 0;
+        virtual void decode_from (BER_Decoder& from) = 0;
+        [[nodiscard]] std::vector < uint8_t > DER_encode () const;
+        [[nodiscard]] std::vector < uint8_t > BER_encode () const;
     };
 
 } // asn1pp

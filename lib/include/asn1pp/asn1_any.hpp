@@ -22,67 +22,35 @@
  * SOFTWARE.
  *********************************************************************************/
 
-#include <asn1pp/raw_value.hpp>
+#ifndef __ASN1PP_ASN1_ANY_HPP_
+#define __ASN1PP_ASN1_ANY_HPP_
 
-#include <utility>
+#include <iosfwd>
+#include <cstdint>
+#include <span>
+#include <vector>
 
-#include <asn1pp/ber_decoder.hpp>
-#include <asn1pp/der_encoder.hpp>
+#include <asn1pp/asn1_object.hpp>
 
 namespace asn1pp
 {
 
-    Raw_Value::Raw_Value ( std::vector < uint8_t > tlv_bytes )
-        : _tlv_bytes ( std::move ( tlv_bytes ) )
-    {}
-
-    Raw_Value::Raw_Value ( std::span < const uint8_t > tlv_bytes )
-        : _tlv_bytes ( tlv_bytes.begin (), tlv_bytes.end () )
-    {}
-
-    void
-    Raw_Value::encode_into ( DER_Encoder& to ) const
+    class ASN1_Any : public ASN1_Object
     {
-        if ( !_tlv_bytes.empty () )
-        {
-            to.raw_bytes ( _tlv_bytes );
-        }
-    }
+    public:
+        ASN1_Any () = default;
+        explicit ASN1_Any (std::span < const uint8_t > encoded);
+        [[nodiscard]] const std::vector < uint8_t >& encoded_tlv () const noexcept;
+        void assign (std::span < const uint8_t > encoded);
+        void encode_into (DER_Encoder& to) const override;
+        void decode_from (BER_Decoder& from) override;
+        bool operator== (const ASN1_Any& other) const noexcept;
+        friend std::ostream& operator<< (std::ostream& stream, const ASN1_Any& value);
 
-    void
-    Raw_Value::decode_from ( BER_Decoder& from )
-    {
-        _tlv_bytes = from.get_next_raw_tlv ();
-    }
-
-    const std::vector < uint8_t >&
-    Raw_Value::get_bytes () const noexcept
-    {
-        return _tlv_bytes;
-    }
-
-    bool
-    Raw_Value::empty () const noexcept
-    {
-        return _tlv_bytes.empty ();
-    }
-
-    void
-    Raw_Value::clear () noexcept
-    {
-        _tlv_bytes.clear ();
-    }
-
-    bool
-    Raw_Value::operator== ( const Raw_Value& other ) const noexcept
-    {
-        return _tlv_bytes == other._tlv_bytes;
-    }
-
-    bool
-    Raw_Value::operator!= ( const Raw_Value& other ) const noexcept
-    {
-        return !( *this == other );
-    }
+    private:
+        std::vector < uint8_t > _encoded;
+    };
 
 } // asn1pp
+
+#endif // __ASN1PP_ASN1_ANY_HPP_

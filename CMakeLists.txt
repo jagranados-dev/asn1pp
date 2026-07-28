@@ -1,76 +1,84 @@
 ##################################################################################
 # MIT License
-#
 # Copyright (c) 2026 Jose Alberto Granados
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
 ##################################################################################
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
-# Project
-project(asn1pp 
-    VERSION 0.2.5
+project(asn1pp
+    VERSION 1.0.0
+    DESCRIPTION "C++20 ASN.1 BER decoder and DER codec library"
+    HOMEPAGE_URL "https://github.com/jagranados-dev/asn1pp"
     LANGUAGES CXX
 )
 
-# C++
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-# Top-level/Submodule detection
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    set(ASN1PP_IS_TOP_LEVEL ON)
+if(PROJECT_IS_TOP_LEVEL)
+    set(ASN1PP_DEFAULT_DEVELOPER_OPTIONS ON)
 else()
-    set(ASN1PP_IS_TOP_LEVEL OFF)
+    set(ASN1PP_DEFAULT_DEVELOPER_OPTIONS OFF)
 endif()
 
-# Options
-option(ASN1PP_BUILD_DOCS     "Build library documentation"         OFF)
-option(ASN1PP_BUILD_TESTS    "Build unit tests"                    ${ASN1PP_IS_TOP_LEVEL})
-option(ASN1PP_BUILD_EXAMPLES "Build example executables"           ${ASN1PP_IS_TOP_LEVEL})
-option(BUILD_SHARED_LIBS     "Build shared version of the library" OFF)
+option(ASN1PP_BUILD_DOCS            "Build Doxygen API documentation"                           OFF)
+option(ASN1PP_BUILD_TESTS           "Build Catch2 unit and functional tests"                    ${ASN1PP_DEFAULT_DEVELOPER_OPTIONS})
+option(ASN1PP_BUILD_EXAMPLES        "Build example executables"                                 ${ASN1PP_DEFAULT_DEVELOPER_OPTIONS})
+option(ASN1PP_BUILD_SHARED          "Build the shared library target"                           OFF)
+option(ASN1PP_ENABLE_WARNINGS       "Enable strict compiler warnings for project targets"       ${ASN1PP_DEFAULT_DEVELOPER_OPTIONS})
+option(ASN1PP_WARNINGS_AS_ERRORS    "Treat project warnings as errors"                          OFF)
+option(ASN1PP_ENABLE_SANITIZERS     "Enable AddressSanitizer and UndefinedBehaviorSanitizer"    OFF)
+option(ASN1PP_INSTALL               "Generate install and CMake package rules"                  ON)
 
-# Library source
 add_subdirectory(lib)
 
-# Library unit tests
 if(ASN1PP_BUILD_TESTS)
+    include(CTest)
+    enable_testing()
     add_subdirectory(tests)
 endif()
 
-# Library examples
 if(ASN1PP_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-# Library optional documentation
 if(ASN1PP_BUILD_DOCS)
-    find_package(Doxygen REQUIRED)
-    find_program(DOT_EXECUTABLE dot)
-
-    if(DOT_EXECUTABLE)
-        set(DOXYGEN_HAVE_DOT YES)
-    else()
-        set(DOXYGEN_HAVE_DOT NO)
-        message(WARNING "Graphviz not found. Diagrams will be disabled.")
-    endif()
-
     add_subdirectory(doc)
+endif()
+
+if(ASN1PP_INSTALL)
+    set(ASN1PP_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/asn1")
+
+    configure_package_config_file(
+        cmake/asn1Config.cmake.in
+        "${CMAKE_CURRENT_BINARY_DIR}/asn1Config.cmake"
+        INSTALL_DESTINATION "${ASN1PP_INSTALL_CMAKEDIR}"
+    )
+
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/asn1ConfigVersion.cmake"
+        VERSION "${PROJECT_VERSION}"
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(
+        EXPORT asn1ppTargets
+        FILE asn1ppTargets.cmake
+        NAMESPACE asn1pp::
+        DESTINATION "${ASN1PP_INSTALL_CMAKEDIR}"
+    )
+
+    install(
+        FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/asn1Config.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/asn1ConfigVersion.cmake"
+        DESTINATION "${ASN1PP_INSTALL_CMAKEDIR}"
+    )
+
+    install(
+        FILES
+            README.md
+            LICENSE
+        DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+    )
 endif()

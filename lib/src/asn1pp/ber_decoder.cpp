@@ -1,373 +1,757 @@
 /*********************************************************************************
  * MIT License
- *
  * Copyright (c) 2026 Jose Alberto Granados
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  *********************************************************************************/
 
 #include <asn1pp/ber_decoder.hpp>
 
-#include <asn1pp/asn1_errors.hpp>
+#include <algorithm>
+#include <limits>
+
 #include <asn1pp/asn1_object.hpp>
+#include <asn1pp/asn1_time.hpp>
+#include <asn1pp/der_encoder.hpp>
+#include <asn1pp/ia5_string.hpp>
+#include <asn1pp/printable_string.hpp>
+#include <asn1pp/utf8_string.hpp>
 
 namespace asn1pp
 {
 
-    BER_Decoder::BER_Decoder ( std::span < const uint8_t > data )
-        : _offset ( 0 ), _data ( data )
-    {
-        _limits.push_back ( data.size () );
-    }
-
-    BER_Decoder::BER_Decoder ( const std::vector < uint8_t >& data )
-        : BER_Decoder ( std::span < const uint8_t > ( data ) )
+    BER_Decoder::BER_Decoder (std::span < const uint8_t > data, BER_DecoderLimits limits)
+        : BER_Decoder (data, limits, false, 0)
     {}
+
+    BER_Decoder::BER_Decoder (const std::vector < uint8_t >& data, BER_DecoderLimits limits)
+        : BER_Decoder (std::span < const uint8_t > (data), limits, false, 0)
+    {}
+
+    BER_Decoder::BER_Decoder (std::span < const uint8_t > data, BER_DecoderLimits limits, bool strict)
+        : BER_Decoder (data, limits, strict, 0)
+    {}
+
+    BER_Decoder::BER_Decoder (std::span < const uint8_t > data,
+                              BER_DecoderLimits limits,
+                              bool strict,
+                              size_t base_offset)
+        : _base_offset (base_offset), _offset (0), _data (data), _limits (limits), _items (0), _strict_der (strict)
+    {
+        if (data.size () > limits.max_input_size)
+        {
+            throw ASN1_DecodingError (
+                ASN1_ErrorCode::LIMIT_EXCEEDED, base_offset, "Input exceeds the configured maximum size");
+        }
+    }
 
     bool
     BER_Decoder::more_items () const
     {
-        if ( _limits.empty () )
-        {
-            return false;
-        }
+        return _offset < _data.size ();
+    }
 
-        return _offset < _limits.back ();
+    size_t
+    BER_Decoder::remaining () const
+    {
+        return _data.size () - _offset;
+    }
+
+    size_t
+    BER_Decoder::offset () const noexcept
+    {
+        return _base_offset + _offset;
+    }
+
+    bool
+    BER_Decoder::strict_der () const noexcept
+    {
+        return _strict_der;
+    }
+
+    bool
+    BER_Decoder::is_strict_der () const noexcept
+    {
+        return _strict_der;
+    }
+
+    BER_Decoder::State
+    BER_Decoder::save_state () const noexcept
+    {
+        return State{_offset, _items};
+    }
+
+    void
+    BER_Decoder::restore_state (State state) noexcept
+    {
+        _offset = state.offset;
+        _items = state.items;
+    }
+
+    ASN1_TagClass
+    BER_Decoder::tag_class (ASN1_Class cls) noexcept
+    {
+        return static_cast < ASN1_TagClass > (static_cast < uint8_t > (cls) & 0xC0u);
+    }
+
+    void
+    BER_Decoder::count_item ()
+    {
+        if (_items >= _limits.max_items)
+        {
+            throw ASN1_DecodingError (
+                ASN1_ErrorCode::LIMIT_EXCEEDED, _offset, "Item count exceeds the configured limit");
+        }
+        ++_items;
+    }
+
+    size_t
+    BER_Decoder::find_eoc (size_t content, size_t limit, size_t depth) const
+    {
+        if (depth > _limits.max_depth)
+        {
+            throw ASN1_DecodingError (
+                ASN1_ErrorCode::LIMIT_EXCEEDED, content, "Nesting depth exceeds the configured limit");
+        }
+        size_t pos = content;
+        while (true)
+        {
+            if (pos + 2 > limit)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::TRUNCATED_INPUT, pos, "Missing end-of-contents marker");
+            }
+            if (_data[pos] == 0 && _data[pos + 1] == 0)
+            {
+                return pos;
+            }
+            BER_ObjectHeader child = parse_header (pos, limit, depth + 1, false);
+            if (child.encoded_size > limit - pos)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_LENGTH, pos, "Child value exceeds its parent");
+            }
+            pos += child.encoded_size;
+        }
     }
 
     BER_ObjectHeader
-    BER_Decoder::get_next_header () const
+    BER_Decoder::parse_header (size_t offset, size_t limit, size_t depth, bool allow_eoc) const
     {
-        if ( !more_items () )
+        if (depth > _limits.max_depth)
         {
-            throw ASN1_DecodingError ( "Attempted to read past the end of the ASN.1 buffer" );
+            throw ASN1_DecodingError (
+                ASN1_ErrorCode::LIMIT_EXCEEDED, offset, "Nesting depth exceeds the configured limit");
         }
-
-        size_t pos = _offset;
-        const uint8_t tag_byte = _data [ pos++ ];
-
-        // Extract the 5 low-order bits for type tag and 3 high-order bits for tag class
-        const auto type_tag = static_cast < ASN1_Type > ( tag_byte & 0x1F );
-        const uint8_t class_tag = tag_byte & 0xE0;
-
-        if ( static_cast < uint8_t > ( type_tag ) == 0x1F )
+        if (offset >= limit)
         {
-            throw ASN1_DecodingError ( "High-tag number form (>30) is not supported in this standalone view" );
+            throw ASN1_DecodingError (ASN1_ErrorCode::TRUNCATED_INPUT, offset, "Missing identifier octet");
         }
-
-        if ( pos >= _limits.back () )
+        size_t pos = offset;
+        uint8_t first = _data[pos++];
+        ASN1_Tag tag{static_cast < ASN1_TagClass > (first & 0xC0u),
+                     (first & 0x20u) != 0,
+                     static_cast < uint64_t > (first & 0x1Fu)};
+        if (tag.number == 31)
         {
-            throw ASN1_DecodingError ( "Buffer truncated while reading length byte" );
+            tag.number = 0;
+            size_t octets = 0;
+            bool first_group = true;
+            while (true)
+            {
+                if (pos >= limit)
+                {
+                    throw ASN1_DecodingError (
+                        ASN1_ErrorCode::TRUNCATED_INPUT, pos, "Truncated high-tag-number identifier");
+                }
+                if (++octets > _limits.max_tag_octets)
+                {
+                    throw ASN1_DecodingError (
+                        ASN1_ErrorCode::LIMIT_EXCEEDED, pos, "Tag identifier exceeds the configured limit");
+                }
+                uint8_t b = _data[pos++];
+                if (first_group && (b & 0x7Fu) == 0)
+                {
+                    throw ASN1_DecodingError (
+                        ASN1_ErrorCode::INVALID_TAG, pos - 1, "Non-minimal high-tag-number identifier");
+                }
+                first_group = false;
+                if (tag.number > (std::numeric_limits < uint64_t >::max () >> 7))
+                {
+                    throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_TAG, pos - 1, "Tag number overflows uint64_t");
+                }
+                tag.number = (tag.number << 7) | (b & 0x7Fu);
+                if ((b & 0x80u) == 0)
+                {
+                    break;
+                }
+            }
+            if (tag.number < 31)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_TAG, offset, "High-tag-number form is not minimal");
+            }
         }
-
-        // Parse BER/DER length field (short form vs long form)
+        if (!allow_eoc && tag.tag_class == ASN1_TagClass::UNIVERSAL && tag.number == 0)
+        {
+            throw ASN1_DecodingError (
+                ASN1_ErrorCode::INVALID_TAG, offset, "End-of-contents is only valid inside an indefinite-length value");
+        }
+        if (pos >= limit)
+        {
+            throw ASN1_DecodingError (ASN1_ErrorCode::TRUNCATED_INPUT, pos, "Missing length octet");
+        }
+        uint8_t lb = _data[pos++];
+        if (lb == 0x80u)
+        {
+            if (_strict_der)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::NON_CANONICAL_DER, pos - 1, "DER forbids indefinite length");
+            }
+            if (!tag.constructed)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::INVALID_LENGTH, pos - 1, "Primitive value uses indefinite length");
+            }
+            size_t end = find_eoc (pos, limit, depth + 1);
+            return {tag, end - pos, pos - offset, end + 2 - offset, true};
+        }
         size_t length = 0;
-        const uint8_t len_byte = _data [ pos++ ];
-
-        if ( ( len_byte & 0x80 ) == 0 )
+        if ((lb & 0x80u) == 0)
         {
-            length = len_byte;
+            length = lb;
         }
         else
         {
-            const size_t num_bytes = len_byte & 0x7F;
-            if ( num_bytes == 0 || num_bytes > sizeof ( size_t ) )
+            size_t count = lb & 0x7Fu;
+            if (count == 0 || count > _limits.max_length_octets || count > limit - pos)
             {
-                throw ASN1_DecodingError ( "Invalid or unsupported length encoding size" );
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_LENGTH, pos - 1, "Invalid long-form length");
             }
-
-            if ( pos + num_bytes > _limits.back () )
+            if (_strict_der && _data[pos] == 0)
             {
-                throw ASN1_DecodingError ( "Buffer overflow while reading length bytes" );
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, pos, "DER length has a redundant leading zero");
             }
-
-            for ( size_t i = 0; i < num_bytes; ++i )
+            for (size_t i = 0; i < count; ++i)
             {
-                length = ( length << 8 ) | _data [ pos++ ];
+                if (length > (std::numeric_limits < size_t >::max () >> 8))
+                {
+                    throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_LENGTH, pos, "Length overflows size_t");
+                }
+                length = (length << 8) | _data[pos++];
+            }
+            if (_strict_der && length < 128)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::NON_CANONICAL_DER, offset, "DER length is not minimal");
             }
         }
-
-        if ( ( pos + length ) > _limits.back () )
+        if (length > _limits.max_element_size)
         {
-            throw ASN1_DecodingError ( "ASN.1 object value extends beyond enclosing scope limit" );
+            throw ASN1_DecodingError (
+                ASN1_ErrorCode::LIMIT_EXCEEDED, offset, "Element exceeds the configured size limit");
         }
-        
-        const size_t header_size = pos - _offset;
-        return BER_ObjectHeader ( type_tag, class_tag, length, header_size );
+        if (length > limit - pos)
+        {
+            throw ASN1_DecodingError (ASN1_ErrorCode::TRUNCATED_INPUT, pos, "Value exceeds available data");
+        }
+        if (tag.tag_class == ASN1_TagClass::UNIVERSAL && tag.number == 0 && (length != 0 || tag.constructed))
+        {
+            throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_TAG, offset, "Malformed end-of-contents value");
+        }
+        return {tag, length, pos - offset, pos - offset + length, false};
     }
 
     std::optional < BER_ObjectHeader >
     BER_Decoder::peek_next_header () const
     {
-        if ( !more_items () )
+        if (!more_items ())
         {
             return std::nullopt;
         }
+        return parse_header (_offset, _data.size (), 0, false);
+    }
 
-        try
+    BER_ValueView
+    BER_Decoder::peek_value (ASN1_Tag expected, bool primitive) const
+    {
+        BER_ObjectHeader h = parse_header (_offset, _data.size (), 0, false);
+        if (!(h.tag == expected))
         {
-            return get_next_header ();
+            throw ASN1_DecodingError (ASN1_ErrorCode::TAG_MISMATCH, _offset, "Unexpected ASN.1 identifier");
         }
-        catch ( ... )
+        if (primitive && h.tag.constructed)
         {
-            return std::nullopt;
+            throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_TAG, _offset, "Primitive value uses constructed form");
         }
+        return {h, _data.subspan (_offset + h.header_size, h.length)};
+    }
+
+    void
+    BER_Decoder::commit (const BER_ValueView& view)
+    {
+        _offset += view.header.encoded_size;
+        count_item ();
     }
 
     BER_ObjectHeader
     BER_Decoder::get_next_object ()
     {
-        BER_ObjectHeader hdr = get_next_header ();
-        _offset += hdr.header_size + hdr.length;
-
-        return hdr;
+        BER_ObjectHeader h = parse_header (_offset, _data.size (), 0, false);
+        _offset += h.encoded_size;
+        count_item ();
+        return h;
     }
 
     std::vector < uint8_t >
     BER_Decoder::get_next_raw_tlv ()
     {
-        BER_ObjectHeader hdr = get_next_header ();
-        size_t start_pos = _offset;
-        size_t total_size = hdr.header_size + hdr.length;
-        _offset += total_size;
-
-        return std::vector < uint8_t > ( _data.begin () + start_pos, _data.begin () + start_pos + total_size );
-    }
-
-    std::vector < uint8_t >
-    BER_Decoder::get_next_value ( ASN1_Type expected_type, ASN1_Class expected_class )
-    {
-        BER_ObjectHeader hdr = get_next_header ();
-        const uint8_t exp_class_val = static_cast < uint8_t > ( expected_class );
-
-        if ( hdr.type_tag != expected_type || ( hdr.class_tag & 0xC0 ) != ( exp_class_val & 0xC0 ) )
-        {
-            throw ASN1_DecodingError ( "Tag mismatch: expected different type or class tag" );
-        }
-
-        _offset += hdr.header_size;
-        std::vector < uint8_t > val ( _data.begin () + _offset, _data.begin () + _offset + hdr.length );
-        _offset += hdr.length;
-
-        return val;
+        BER_ObjectHeader h = parse_header (_offset, _data.size (), 0, false);
+        std::vector < uint8_t > out (_data.begin () + _offset, _data.begin () + _offset + h.encoded_size);
+        _offset += h.encoded_size;
+        count_item ();
+        return out;
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( bool& out, ASN1_Type type_tag, ASN1_Class class_tag )
+    BER_Decoder::decode (bool& out, ASN1_Type type, ASN1_Class cls)
     {
-        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
-
-        if ( val.size () != 1 )
+        State s = save_state ();
+        try
         {
-            throw ASN1_DecodingError ( "Invalid length for ASN.1 BOOLEAN" );
+            auto v = peek_value ({tag_class (cls), false, static_cast < uint64_t > (type)}, true);
+            if (v.value.size () != 1)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, _offset, "BOOLEAN must contain one octet");
+            }
+            if (_strict_der && v.value[0] != 0 && v.value[0] != 0xFFu)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, _offset, "DER TRUE must be encoded as 0xFF");
+            }
+            bool result = v.value[0] != 0;
+            commit (v);
+            out = result;
+            return *this;
         }
+        catch (...)
+        {
+            restore_state (s);
+            throw;
+        }
+    }
 
-        out = ( val [ 0 ] != 0 );
+    BER_Decoder&
+    BER_Decoder::decode (uint64_t& out, ASN1_Type type, ASN1_Class cls)
+    {
+        State s = save_state ();
+        try
+        {
+            auto v = peek_value ({tag_class (cls), false, static_cast < uint64_t > (type)}, true);
+            auto b = v.value;
+            if (b.empty () || (b[0] & 0x80u))
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::INVALID_VALUE, _offset, "Unsigned INTEGER is empty or negative");
+            }
+            if (b.size () > _limits.max_integer_octets)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::LIMIT_EXCEEDED, _offset, "INTEGER exceeds the configured limit");
+            }
+            if (_strict_der && b.size () > 1 && b[0] == 0 && (b[1] & 0x80u) == 0)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, _offset, "INTEGER has redundant sign extension");
+            }
+            size_t i = 0;
+            while (i + 1 < b.size () && b[i] == 0)
+            {
+                ++i;
+            }
+            if (b.size () - i > 8)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, _offset, "INTEGER exceeds uint64_t");
+            }
+            uint64_t result = 0;
+            for (; i < b.size (); ++i)
+            {
+                result = (result << 8) | b[i];
+            }
+            commit (v);
+            out = result;
+            return *this;
+        }
+        catch (...)
+        {
+            restore_state (s);
+            throw;
+        }
+    }
 
+    BER_Decoder&
+    BER_Decoder::decode (int64_t& out, ASN1_Type type, ASN1_Class cls)
+    {
+        State s = save_state ();
+        try
+        {
+            auto v = peek_value ({tag_class (cls), false, static_cast < uint64_t > (type)}, true);
+            auto b = v.value;
+            if (b.empty ())
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, _offset, "INTEGER is empty");
+            }
+            if (b.size () > _limits.max_integer_octets)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::LIMIT_EXCEEDED, _offset, "INTEGER exceeds the configured limit");
+            }
+            if (_strict_der && b.size () > 1 &&
+                ((b[0] == 0 && (b[1] & 0x80u) == 0) || (b[0] == 0xFFu && (b[1] & 0x80u) != 0)))
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, _offset, "INTEGER has redundant sign extension");
+            }
+            size_t i = 0;
+            while (i + 1 < b.size () &&
+                   ((b[i] == 0 && (b[i + 1] & 0x80u) == 0) || (b[i] == 0xFFu && (b[i + 1] & 0x80u) != 0)))
+            {
+                ++i;
+            }
+            if (b.size () - i > 8)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, _offset, "INTEGER exceeds int64_t");
+            }
+            bool neg = b[i] & 0x80u;
+            uint64_t bits = neg ? UINT64_MAX : 0;
+            for (; i < b.size (); ++i)
+            {
+                bits = (bits << 8) | b[i];
+            }
+            int64_t result;
+            if (neg)
+            {
+                uint64_t m = ~bits;
+                result = m == static_cast < uint64_t > (INT64_MAX) ? INT64_MIN : -static_cast < int64_t > (m) - 1;
+            }
+            else
+            {
+                if (bits > static_cast < uint64_t > (INT64_MAX))
+                {
+                    throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, _offset, "INTEGER exceeds int64_t");
+                }
+                result = static_cast < int64_t > (bits);
+            }
+            commit (v);
+            out = result;
+            return *this;
+        }
+        catch (...)
+        {
+            restore_state (s);
+            throw;
+        }
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_implicit (ASN1_Object& out, ASN1_Tag expected, ASN1_Tag natural)
+    {
+        State state = save_state ();
+        try
+        {
+            BER_ValueView view = peek_value (expected, false);
+            DER_Encoder encoder;
+            encoder.add_object (natural, view.value);
+            const std::vector < uint8_t > synthetic = encoder.take_contents ();
+            BER_Decoder decoder (synthetic, _limits, _strict_der, _base_offset + _offset);
+            decoder.decode (out);
+            if (decoder.more_items ())
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::UNCONSUMED_DATA,
+                    offset (),
+                    "Implicitly tagged value contains unconsumed data");
+            }
+            commit (view);
+            return *this;
+        }
+        catch (...)
+        {
+            restore_state (state);
+            throw;
+        }
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_view (std::span < const uint8_t >& out, ASN1_Type type, ASN1_Class cls)
+    {
+        auto v = peek_value ({tag_class (cls), false, static_cast < uint64_t > (type)}, true);
+        commit (v);
+        out = v.value;
         return *this;
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( uint64_t& out, ASN1_Type type_tag, ASN1_Class class_tag )
+    BER_Decoder::decode (std::vector < uint8_t >& out, ASN1_Type type, ASN1_Class cls)
     {
-        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
-
-        if ( val.empty () || val.size () > 9 )
+        State s = save_state ();
+        try
         {
-            throw ASN1_DecodingError ( "INTEGER size out of uint64_t supported bounds" );
+            auto v = peek_value ({tag_class (cls), false, static_cast < uint64_t > (type)}, true);
+            std::vector < uint8_t > result (v.value.begin (), v.value.end ());
+            commit (v);
+            out = std::move (result);
+            return *this;
         }
-
-        out = 0;
-        for ( uint8_t b : val )
+        catch (...)
         {
-            out = ( out << 8 ) | b;
+            restore_state (s);
+            throw;
         }
-
-        return *this;
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( int64_t& out, ASN1_Type type_tag, ASN1_Class class_tag )
+    BER_Decoder::decode (std::string& out, ASN1_Type type, ASN1_Class cls)
     {
-        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
-
-        if ( val.empty () || val.size () > 8 )
+        State s = save_state ();
+        try
         {
-            throw ASN1_DecodingError ( "INTEGER size out of int64_t supported bounds" );
+            auto v = peek_value ({tag_class (cls), false, static_cast < uint64_t > (type)}, true);
+            std::string result (v.value.begin (), v.value.end ());
+            commit (v);
+            out = std::move (result);
+            return *this;
         }
-
-        bool is_negative = ( val [ 0 ] & 0x80 ) != 0;
-        uint64_t temp = is_negative ? static_cast < uint64_t > ( -1 ) : 0;
-
-        for ( uint8_t b : val )
+        catch (...)
         {
-            temp = ( temp << 8 ) | b;
+            restore_state (s);
+            throw;
         }
-
-        out = static_cast < int64_t > ( temp );
-
-        return *this;
     }
 
     BER_Decoder&
-    BER_Decoder::decode ( std::vector < uint8_t >& out, ASN1_Type type_tag, ASN1_Class class_tag )
+    BER_Decoder::decode (ASN1_Object& out)
     {
-        out = get_next_value ( type_tag, class_tag );
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::decode ( std::string& out, ASN1_Type type_tag, ASN1_Class class_tag )
-    {
-        std::vector < uint8_t > val = get_next_value ( type_tag, class_tag );
-        out.assign ( val.begin (), val.end () );
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::decode ( ASN1_Object& obj )
-    {
-        obj.decode_from ( *this );
-        return *this;
+        State s = save_state ();
+        try
+        {
+            out.decode_from (*this);
+            return *this;
+        }
+        catch (...)
+        {
+            restore_state (s);
+            throw;
+        }
     }
 
     BER_Decoder&
     BER_Decoder::decode_null ()
     {
-        std::vector < uint8_t > val = get_next_value ( ASN1_Type::NULL_TAG, ASN1_Class::UNIVERSAL );
-
-        if ( !val.empty () )
+        auto v = peek_value ({ASN1_TagClass::UNIVERSAL, false, 5}, true);
+        if (!v.value.empty ())
         {
-            throw ASN1_DecodingError ( "ASN.1 NULL must have zero length" );
+            throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, _offset, "NULL must be empty");
         }
-
+        commit (v);
         return *this;
     }
 
+    BER_Decoder&
+    BER_Decoder::validate_set_of_order ()
+    {
+        size_t pos = _offset;
+        std::span < const uint8_t > previous;
+        while (pos < _data.size ())
+        {
+            auto h = parse_header (pos, _data.size (), 0, false);
+            auto current = _data.subspan (pos, h.encoded_size);
+            if (!previous.empty () &&
+                std::lexicographical_compare (current.begin (), current.end (), previous.begin (), previous.end ()))
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, pos, "SET OF elements are not in DER order");
+            }
+            previous = current;
+            pos += h.encoded_size;
+        }
+        return *this;
+    }
+    
     void
-    BER_Decoder::start_cons ( ASN1_Type expected_type )
+    BER_Decoder::validate_der_primitive (const BER_ObjectHeader& header, size_t content_offset) const
     {
-        BER_ObjectHeader hdr = get_next_header ();
-        if ( hdr.type_tag != expected_type || ( hdr.class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) == 0 )
+        const std::span < const uint8_t > value = _data.subspan (content_offset, header.length);
+        if (header.tag.tag_class != ASN1_TagClass::UNIVERSAL)
         {
-            throw ASN1_DecodingError ( "Expected CONSTRUCTED structure tag" );
+            return;
         }
-
-        _offset += hdr.header_size;
-        _limits.push_back ( _offset + hdr.length );
-    }
-
-    BER_Decoder&
-    BER_Decoder::start_sequence ()
-    {
-        start_cons ( ASN1_Type::SEQUENCE );
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::start_set ()
-    {
-        start_cons ( ASN1_Type::SET );
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::end_cons ()
-    {
-        if ( _limits.size () <= 1 )
+        switch (header.tag.number)
         {
-            throw ASN1_DecodingError ( "end_cons() called with no open sequence/set/context scope" );
-        }
-
-        const size_t scope_limit = _limits.back ();
-
-        if ( _offset != scope_limit )
+        case static_cast < uint64_t > (ASN1_Type::BOOLEAN):
+            if (value.size () != 1 || (value[0] != 0x00u && value[0] != 0xFFu))
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, content_offset, "DER BOOLEAN must use 0x00 or 0xFF");
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::INTEGER):
+        case static_cast < uint64_t > (ASN1_Type::ENUMERATED):
+            if (value.empty ())
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, content_offset, "INTEGER cannot be empty");
+            }
+            if (value.size () > 1 &&
+                ((value[0] == 0 && (value[1] & 0x80u) == 0) || (value[0] == 0xFFu && (value[1] & 0x80u) != 0)))
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, content_offset, "INTEGER has redundant sign extension");
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::BIT_STRING):
+            if (value.empty () || value[0] > 7 || (value.size () == 1 && value[0] != 0))
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::INVALID_VALUE, content_offset, "Invalid BIT STRING unused bits");
+            }
+            if (value.size () > 1 && value[0] != 0 && (value.back () & ((1u << value[0]) - 1u)) != 0)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, content_offset, "BIT STRING has non-zero unused bits");
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::NULL_TAG):
+            if (!value.empty ())
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, content_offset, "NULL must be empty");
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::OBJECT_ID):
         {
-            throw ASN1_DecodingError ( "Unconsumed bytes remaining in closed scope" );
+            if (value.empty ())
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::INVALID_VALUE, content_offset, "OBJECT IDENTIFIER cannot be empty");
+            }
+            size_t position = 0;
+            while (position < value.size ())
+            {
+                bool first = true;
+                do
+                {
+                    if (position >= value.size ())
+                    {
+                        throw ASN1_DecodingError (
+                            ASN1_ErrorCode::TRUNCATED_INPUT, content_offset + position, "Truncated OBJECT IDENTIFIER");
+                    }
+                    uint8_t octet = value[position++];
+                    if (first && octet == 0x80u)
+                    {
+                        throw ASN1_DecodingError (ASN1_ErrorCode::NON_CANONICAL_DER,
+                                                  content_offset + position - 1,
+                                                  "Non-minimal OBJECT IDENTIFIER");
+                    }
+                    first = false;
+                    if ((octet & 0x80u) == 0)
+                    {
+                        break;
+                    }
+                } while (true);
+            }
+            break;
         }
-
-        _limits.pop_back ();
-
-        return *this;
+        case static_cast < uint64_t > (ASN1_Type::UTF8_STRING):
+            try
+            {
+                UTF8_String (std::string_view (reinterpret_cast < const char* > (value.data ()), value.size ()));
+            }
+            catch (const ASN1_InvalidArgument& error)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, content_offset, error.what ());
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::IA5_STRING):
+            try
+            {
+                IA5_String (std::string_view (reinterpret_cast < const char* > (value.data ()), value.size ()));
+            }
+            catch (const ASN1_InvalidArgument& error)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, content_offset, error.what ());
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::PRINTABLE_STRING):
+            try
+            {
+                Printable_String (std::string_view (reinterpret_cast < const char* > (value.data ()), value.size ()));
+            }
+            catch (const ASN1_InvalidArgument& error)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, content_offset, error.what ());
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::UTC_TIME):
+        case static_cast < uint64_t > (ASN1_Type::GENERALIZED_TIME):
+            try
+            {
+                ASN1_TimeType type = header.tag.number == static_cast < uint64_t > (ASN1_Type::UTC_TIME)
+                                         ? ASN1_TimeType::UTC
+                                         : ASN1_TimeType::GENERALIZED;
+                ASN1_Time (type, std::string_view (reinterpret_cast < const char* > (value.data ()), value.size ()));
+            }
+            catch (const ASN1_InvalidArgument& error)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::NON_CANONICAL_DER, content_offset, error.what ());
+            }
+            break;
+        case static_cast < uint64_t > (ASN1_Type::SEQUENCE):
+        case static_cast < uint64_t > (ASN1_Type::SET):
+            throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_TAG,
+                                      content_offset - header.header_size,
+                                      "SEQUENCE and SET must be constructed");
+        default:
+            break;
+        }
     }
 
-    BER_Decoder&
-    BER_Decoder::start_explicit ( uint8_t tag_number )
+    BER_ObjectHeader
+    BER_Decoder::validate_der_object_at (size_t offset, size_t limit, size_t depth) const
     {
-        BER_ObjectHeader hdr = get_next_header ();
-        if ( hdr.type_tag != static_cast < ASN1_Type > ( tag_number ) || 
-           ( hdr.class_tag & 0xC0u ) != static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) ||
-           ( hdr.class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) == 0 )
+        BER_ObjectHeader header = parse_header (offset, limit, depth, false);
+        size_t content_offset = offset + header.header_size;
+        size_t content_end = content_offset + header.length;
+        if (header.tag.constructed)
         {
-            throw ASN1_DecodingError ( "Expected CONSTRUCTED EXPLICIT context-specific tag" );
+            size_t child_offset = content_offset;
+            while (child_offset < content_end)
+            {
+                BER_ObjectHeader child = validate_der_object_at (child_offset, content_end, depth + 1);
+                child_offset += child.encoded_size;
+            }
         }
-
-        _offset += hdr.header_size;
-        _limits.push_back ( _offset + hdr.length );
-
-        return *this;
-    }
-
-    BER_Decoder&
-    BER_Decoder::end_explicit ()
-    {
-        return end_cons ();
-    }
-
-    BER_Decoder&
-    BER_Decoder::start_implicit_cons ( uint8_t tag_number )
-    {
-        BER_ObjectHeader hdr = get_next_header ();
-        if ( hdr.type_tag != static_cast < ASN1_Type > ( tag_number ) || 
-           ( hdr.class_tag & 0xC0u ) != static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) ||
-           ( hdr.class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) == 0 )
+        else
         {
-            throw ASN1_DecodingError ( "Expected CONSTRUCTED IMPLICIT context-specific tag" );
+            validate_der_primitive (header, content_offset);
         }
-
-        _offset += hdr.header_size;
-        _limits.push_back ( _offset + hdr.length );
-
-        return *this;
+        return header;
     }
 
-    BER_Decoder&
-    BER_Decoder::end_implicit_cons ()
+    BER_ObjectHeader
+    BER_Decoder::validate_next_der_object ()
     {
-        return end_cons ();
-    }
-
-    bool
-    BER_Decoder::has_explicit ( uint8_t tag_number ) const
-    {
-        auto hdr = peek_next_header ();
-        return hdr && hdr->type_tag == static_cast < ASN1_Type > ( tag_number ) &&
-             ( hdr->class_tag & 0xC0u ) == static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) &&
-             ( hdr->class_tag & static_cast < uint8_t > ( ASN1_Class::CONSTRUCTED ) ) != 0;
-    }
-
-    bool
-    BER_Decoder::has_implicit_cons ( uint8_t tag_number ) const
-    {
-        return has_explicit ( tag_number );
+        State state = save_state ();
+        try
+        {
+            if (!_strict_der)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::INVALID_STATE, _offset, "DER validation requires DER_Decoder");
+            }
+            BER_ObjectHeader header = validate_der_object_at (_offset, _data.size (), 0);
+            _offset += header.encoded_size;
+            count_item ();
+            return header;
+        }
+        catch (...)
+        {
+            restore_state (state);
+            throw;
+        }
     }
 
 } // asn1pp

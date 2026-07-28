@@ -25,102 +25,39 @@
 #ifndef __ASN1PP_ASN1_TIME_HPP_
 #define __ASN1PP_ASN1_TIME_HPP_
 
-#include <chrono>
 #include <iosfwd>
 #include <string>
 #include <string_view>
 
 #include <asn1pp/asn1_object.hpp>
-#include <asn1pp/asn1_types.hpp>
 
-namespace asn1pp 
+namespace asn1pp
 {
 
-    /**
-     * @brief Represents an ASN.1 Time object (UTCTime or GeneralizedTime).
-     * 
-     * Encapsulates a C++20 chrono system_clock time point and handles its DER
-     * encoding and BER decoding according to ITU-T X.690 and RFC 5280 rules.
-     * Automatically selects UTCTime for years 1950-2049 and GeneralizedTime otherwise.
-     */
-    class ASN1_Time final : public ASN1_Object
+    enum class ASN1_TimeType
     {
-    public:
-        /**
-         * @brief Constructs an uninitialized ASN1_Time (epoch time with UTC_TIME tag).
-         */
-        ASN1_Time () = default;
-
-        /**
-         * @brief Constructs an ASN1_Time from a chrono system_clock time point.
-         * @param time The C++20 time point.
-         * @param tag The ASN.1 tag to use (defaults to EOC for automatic selection based on year).
-         */
-        explicit ASN1_Time ( std::chrono::system_clock::time_point time, ASN1_Type tag = ASN1_Type::EOC );
-
-        /**
-         * @brief Constructs an ASN1_Time by parsing an ASN.1 DER date string.
-         * @param time_str Formatted string (e.g., "260721173202Z" or "20260721173202Z").
-         * @param tag The ASN.1 tag (defaults to EOC for automatic format detection).
-         */
-        explicit ASN1_Time ( std::string_view time_str, ASN1_Type tag = ASN1_Type::EOC );
-
-        ~ASN1_Time() override = default;
-
-        // Copy and move semantics
-        ASN1_Time ( const ASN1_Time& ) = default;
-        ASN1_Time& operator= ( const ASN1_Time& ) = default;
-        ASN1_Time ( ASN1_Time&& ) noexcept = default;
-        ASN1_Time& operator= ( ASN1_Time&& ) noexcept = default;
-
-        /**
-         * @brief Serializes this time object into a DER encoder stream.
-         * @param to The target DER encoder.
-         */
-        void encode_into ( DER_Encoder& to ) const override;
-
-        /**
-         * @brief Deserializes a time object from a BER decoder stream.
-         * @param from The source BER decoder.
-         */
-        void decode_from ( BER_Decoder& from ) override;
-
-        /**
-         * @brief Returns the underlying C++20 system_clock time point.
-         */
-        [[nodiscard]] std::chrono::system_clock::time_point get_time_point () const noexcept;
-
-        /**
-         * @brief Returns the ASN.1 tag associated with this timestamp (UTC_TIME or GENERALIZED_TIME).
-         */
-        [[nodiscard]] ASN1_Type get_tag () const noexcept;
-
-        /**
-         * @brief Formats the date as an ISO-8601 readable string (e.g., "2026-07-21T17:32:02Z").
-         */
-        [[nodiscard]] std::string to_string () const;
-
-        /**
-         * @brief Formats the date as the exact DER ASN.1 string representation.
-         */
-        [[nodiscard]] std::string to_asn1_string () const;
-
-        // Relational operators for chronological comparison
-        [[nodiscard]] bool operator== ( const ASN1_Time& other ) const noexcept;
-        [[nodiscard]] bool operator!= ( const ASN1_Time& other ) const noexcept;
-        [[nodiscard]] bool operator< ( const ASN1_Time& other ) const noexcept;
-        [[nodiscard]] bool operator<= ( const ASN1_Time& other ) const noexcept;
-        [[nodiscard]] bool operator> ( const ASN1_Time& other ) const noexcept;
-        [[nodiscard]] bool operator>= ( const ASN1_Time& other ) const noexcept;
-    private:
-        std::chrono::system_clock::time_point _time_point;
-        ASN1_Type _tag = ASN1_Type::UTC_TIME;
+        UTC,
+        GENERALIZED
     };
 
-    /**
-     * @brief Stream insertion operator for printing ASN1_Time instances.
-     */
-    std::ostream& operator<< ( std::ostream& os, const ASN1_Time& time );
+    class ASN1_Time : public ASN1_Object
+    {
+    public:
+        ASN1_Time ();
+        ASN1_Time (ASN1_TimeType type, std::string_view value);
+        [[nodiscard]] ASN1_TimeType type () const noexcept;
+        [[nodiscard]] const std::string& value () const noexcept;
+        void assign (ASN1_TimeType type, std::string_view value);
+        void encode_into (DER_Encoder& to) const override;
+        void decode_from (BER_Decoder& from) override;
+        bool operator== (const ASN1_Time& other) const noexcept;
+        friend std::ostream& operator<< (std::ostream& stream, const ASN1_Time& value);
+
+    private:
+        static void validate (ASN1_TimeType type, std::string_view value);
+        ASN1_TimeType _type;
+        std::string _value;
+    };
 
 } // asn1pp
 

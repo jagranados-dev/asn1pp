@@ -1,299 +1,283 @@
 /*********************************************************************************
  * MIT License
- *
  * Copyright (c) 2026 Jose Alberto Granados
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  *********************************************************************************/
 
 #include <asn1pp/der_encoder.hpp>
 
 #include <algorithm>
+#include <limits>
 
-#include <asn1pp/asn1_errors.hpp>
 #include <asn1pp/asn1_object.hpp>
+#include <asn1pp/der_decoder.hpp>
+
+#include "codec_utils.hpp"
 
 namespace asn1pp
 {
 
-    std::vector < uint8_t >&
-    DER_Encoder::current_stream ()
-    {
-        if ( _subsequences.empty () )
-        {
-            return _contents;
-        }
+    using detail::append_base128;
+    DER_Encoder::DER_Encoder (DER_EncoderLimits limits) : DER_Encoder (limits, 0)
+    {}
 
-        return _subsequences.back ().contents;
-    }
-
-    const std::vector < uint8_t >&
-    DER_Encoder::current_stream () const
-    {
-        if ( _subsequences.empty () )
-        {
-            return _contents;
-        }
-
-        return _subsequences.back ().contents;
-    }
+    DER_Encoder::DER_Encoder (DER_EncoderLimits limits, size_t depth)
+        : _limits (limits), _depth (depth), _collect_elements (false)
+    {}
 
     std::vector < uint8_t >
     DER_Encoder::get_contents () const
     {
-        if ( !_subsequences.empty () )
-        {
-            throw ASN1_EncodingError ( "Unclosed SEQUENCE/SET at get_contents()" );
-        }
-
         return _contents;
     }
 
-    void
-    DER_Encoder::encode_length ( std::vector < uint8_t >& out, size_t length )
+    std::span < const uint8_t >
+    DER_Encoder::contents () const
     {
-        if ( length < 128 )
-        {
-            out.push_back ( static_cast < uint8_t > ( length ) );
-        }
-        else
-        {
-            std::vector < uint8_t > len_bytes;
-            while ( length > 0 )
-            {
-                len_bytes.push_back ( static_cast < uint8_t > ( length & 0xFF ) );
-                length >>= 8;
-            }
+        return _contents;
+    }
 
-            out.push_back ( static_cast < uint8_t > ( 0x80 | len_bytes.size () ) );
+    std::vector < uint8_t >
+    DER_Encoder::take_contents ()
+    {
+        return std::move (_contents);
+    }
 
-            for ( auto it = len_bytes.rbegin (); it != len_bytes.rend (); ++it )
-            {
-                out.push_back ( *it );
-            }
+    void
+    DER_Encoder::ensure_size (size_t additional) const
+    {
+        if (additional > _limits.max_output_size || _contents.size () > _limits.max_output_size - additional)
+        {
+            throw ASN1_EncodingError (ASN1_ErrorCode::LIMIT_EXCEEDED, "Output exceeds the configured limit");
         }
     }
 
     void
-    DER_Encoder::encode_tag ( std::vector < uint8_t >& out, ASN1_Type type_tag, uint8_t class_tag )
+    DER_Encoder::encode_tag (std::vector < uint8_t >& out, ASN1_Tag tag)
     {
-        const uint8_t tag_byte = class_tag | static_cast < uint8_t > ( type_tag );
-        out.push_back ( tag_byte );
+        uint8_t first = static_cast < uint8_t > (tag.tag_class) | (tag.constructed ? 0x20u : 0);
+        if (tag.number < 31)
+        {
+            out.push_back (first | static_cast < uint8_t > (tag.number));
+            return;
+        }
+        out.push_back (first | 0x1Fu);
+        append_base128 (out, tag.number);
+    }
+
+    void
+    DER_Encoder::encode_length (std::vector < uint8_t >& out, size_t length)
+    {
+        if (length < 128)
+        {
+            out.push_back (static_cast < uint8_t > (length));
+            return;
+        }
+        uint8_t b[sizeof (size_t)];
+        size_t n = 0;
+        while (length)
+        {
+            b[n++] = length & 0xFFu;
+            length >>= 8;
+        }
+        out.push_back (0x80u | static_cast < uint8_t > (n));
+        while (n)
+        {
+            out.push_back (b[--n]);
+        }
+    }
+
+    void
+    DER_Encoder::append_encoded (std::vector < uint8_t > encoded)
+    {
+        if (_collect_elements)
+        {
+            _elements.push_back (std::move (encoded));
+            return;
+        }
+        ensure_size (encoded.size ());
+        _contents.insert (_contents.end (), encoded.begin (), encoded.end ());
     }
 
     DER_Encoder&
-    DER_Encoder::add_object ( ASN1_Type type_tag, ASN1_Class class_tag, std::span < const uint8_t > rep )
+    DER_Encoder::add_object (ASN1_Tag tag, std::span < const uint8_t > value)
     {
-        return add_object ( type_tag, static_cast < uint8_t > ( class_tag ), rep );
-    }
-
-    DER_Encoder&
-    DER_Encoder::add_object ( ASN1_Type type_tag, uint8_t class_tag, std::span < const uint8_t > rep )
-    {
-        std::vector < uint8_t >& stream = current_stream ();
-
-        encode_tag ( stream, type_tag, class_tag );
-        encode_length ( stream, rep.size () );
-        stream.insert ( stream.end (), rep.begin (), rep.end () );
-        
+        std::vector < uint8_t > encoded;
+        encoded.reserve (value.size () + 16);
+        encode_tag (encoded, tag);
+        encode_length (encoded, value.size ());
+        encoded.insert (encoded.end (), value.begin (), value.end ());
+        append_encoded (std::move (encoded));
         return *this;
     }
 
     DER_Encoder&
-    DER_Encoder::raw_bytes ( std::span < const uint8_t > val )
+    DER_Encoder::encode (bool v, ASN1_Type t, ASN1_Class c)
     {
-        std::vector < uint8_t >& stream = current_stream ();
-        stream.insert ( stream.end (), val.begin (), val.end () );
-
-        return *this;
+        uint8_t b = v ? 0xFFu : 0;
+        return add_object (
+            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u), false, static_cast < uint64_t > (t)},
+            std::span < const uint8_t > (&b, 1));
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( bool val, ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode (uint64_t v, ASN1_Type t, ASN1_Class c)
     {
-        const uint8_t byte_val = val ? 0xFF : 0x00;
-        return add_object ( type_tag, class_tag, std::span ( &byte_val, 1 ) );
-    }
-
-    DER_Encoder&
-    DER_Encoder::encode ( uint64_t val, ASN1_Type type_tag, ASN1_Class class_tag )
-    {
-        std::vector < uint8_t > contents;
-
-        if ( !val )
-        {
-            contents.push_back ( 0x00 );
-        }
-        else
-        {
-            while ( val > 0 )
-            {
-                contents.push_back ( static_cast < uint8_t > ( val & 0xFF ) );
-                val >>= 8;
-            }
-
-            if ( contents.back () & 0x80 )
-            {
-                contents.push_back ( 0x00 );
-            }
-
-            std::reverse ( contents.begin (), contents.end () );
-        }
-
-        return add_object ( type_tag, class_tag, contents );
-    }
-
-    DER_Encoder&
-    DER_Encoder::encode ( int64_t val, ASN1_Type type_tag, ASN1_Class class_tag )
-    {
-        if ( val >= 0 )
-        {
-            return encode ( static_cast < uint64_t > ( val ), type_tag, class_tag );
-        }
-
-        std::vector < uint8_t > contents;
-        int64_t temp = val;
-
+        uint8_t rev[9];
+        size_t n = 0;
         do
         {
-            contents.push_back ( static_cast < uint8_t > ( temp & 0xFF ) );
-            temp >>= 8;
-        } while ( temp != -1 && temp != 0 );
-
-        if ( ( contents.back () & 0x80 ) == 0 )
+            rev[n++] = v & 0xFFu;
+            v >>= 8;
+        } while (v);
+        if (rev[n - 1] & 0x80u)
         {
-            contents.push_back ( 0xFF );
+            rev[n++] = 0;
         }
-
-        std::reverse ( contents.begin (), contents.end () );
-
-        return add_object ( type_tag, class_tag, contents );
+        std::vector < uint8_t > b;
+        while (n)
+        {
+            b.push_back (rev[--n]);
+        }
+        return add_object (
+            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u), false, static_cast < uint64_t > (t)}, b);
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( std::span < const uint8_t > bytes, ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode (int64_t v, ASN1_Type t, ASN1_Class c)
     {
-        return add_object ( type_tag, static_cast < uint8_t > ( class_tag ), bytes );
+        uint64_t bits = static_cast < uint64_t > (v);
+        uint8_t b[8];
+        for (size_t i = 0; i < 8; ++i)
+        {
+            b[7 - i] = bits & 0xFFu;
+            bits >>= 8;
+        }
+        size_t first = 0;
+        while (first + 1 < 8 &&
+               ((b[first] == 0 && (b[first + 1] & 0x80u) == 0) || (b[first] == 0xFFu && (b[first + 1] & 0x80u) != 0)))
+        {
+            ++first;
+        }
+        return add_object (
+            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u), false, static_cast < uint64_t > (t)},
+            std::span < const uint8_t > (b + first, 8 - first));
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( std::string_view str, ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode (std::span < const uint8_t > v, ASN1_Type t, ASN1_Class c)
     {
-        std::span < const uint8_t > bytes ( reinterpret_cast < const uint8_t* > ( str.data () ), str.size () );
-        return add_object ( type_tag, static_cast < uint8_t > ( class_tag ), bytes );
+        return add_object (
+            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u), false, static_cast < uint64_t > (t)}, v);
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( const char* str, ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode (std::string_view v, ASN1_Type t, ASN1_Class c)
     {
-        return encode ( std::string_view ( str ? str : "" ), type_tag, class_tag );
+        return encode (std::span < const uint8_t > (reinterpret_cast < const uint8_t* > (v.data ()), v.size ()), t, c);
     }
 
     DER_Encoder&
-    DER_Encoder::encode ( const ASN1_Object& obj )
+    DER_Encoder::encode (const char* v, ASN1_Type t, ASN1_Class c)
     {
-        obj.encode_into ( *this );
+        if (!v)
+        {
+            throw ASN1_EncodingError (ASN1_ErrorCode::INVALID_ARGUMENT, "Null C string");
+        }
+        return encode (std::string_view (v), t, c);
+    }
+
+    DER_Encoder&
+    DER_Encoder::encode (const ASN1_Object& v)
+    {
+        DER_Encoder child (_limits, _depth);
+        v.encode_into (child);
+        auto encoded = child.take_contents ();
+        validate_one_der_tlv (encoded);
+        append_encoded (std::move (encoded));
         return *this;
     }
 
     DER_Encoder&
-    DER_Encoder::encode_default ( std::string_view str, std::string_view default_val,
-                                  ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode_implicit (const ASN1_Object& value, ASN1_Tag replacement, ASN1_Tag natural)
     {
-        if ( str != default_val )
+        DER_Encoder child (_limits, _depth);
+        value.encode_into (child);
+        const std::vector < uint8_t > encoded = child.take_contents ();
+        DER_Decoder decoder (encoded);
+        const auto header = decoder.peek_next_header ();
+
+        if (!header || !(header->tag == natural) || header->encoded_size != encoded.size ())
         {
-            encode ( str, type_tag, class_tag );
+            throw ASN1_EncodingError (
+                ASN1_ErrorCode::INVALID_VALUE,
+                "Implicitly tagged value does not use the declared natural identifier");
         }
-        return *this;
+
+        return add_object (
+            replacement,
+            std::span < const uint8_t > (encoded).subspan (header->header_size, header->length));
     }
 
     DER_Encoder&
-    DER_Encoder::encode_default ( const char* str, const char* default_val,
-                                  ASN1_Type type_tag, ASN1_Class class_tag )
+    DER_Encoder::encode_choice_alternative (const ASN1_Object& value, ASN1_Tag expected)
     {
-        return encode_default ( std::string_view ( str ? str : "" ), std::string_view ( default_val ? default_val : "" ), type_tag, class_tag );
+        DER_Encoder child (_limits, _depth);
+        value.encode_into (child);
+        std::vector < uint8_t > encoded = child.take_contents ();
+        DER_Decoder decoder (encoded);
+        const auto header = decoder.peek_next_header ();
+
+        if (!header || !(header->tag == expected) || header->encoded_size != encoded.size ())
+        {
+            throw ASN1_EncodingError (
+                ASN1_ErrorCode::INVALID_STATE,
+                "Selected CHOICE value does not use its declared effective identifier");
+        }
+
+        append_encoded (std::move (encoded));
+        return *this;
     }
 
     DER_Encoder&
     DER_Encoder::encode_null ()
     {
-        return add_object ( ASN1_Type::NULL_TAG, ASN1_Class::UNIVERSAL, {} );
+        return add_object ({ASN1_TagClass::UNIVERSAL, false, 5}, {});
     }
 
-    void
-    DER_Encoder::start_cons ( ASN1_Type tag, uint8_t class_tag )
+    std::vector < uint8_t >
+    DER_Encoder::finalize_child ()
     {
-        _subsequences.push_back ({ tag, static_cast < uint8_t > ( class_tag | ASN1_Class::CONSTRUCTED ), {} });
-    }
-
-    DER_Encoder&
-    DER_Encoder::start_sequence ()
-    {
-        start_cons ( ASN1_Type::SEQUENCE, static_cast < uint8_t > ( ASN1_Class::UNIVERSAL ) );
-        return *this;
-    }
-
-    DER_Encoder&
-    DER_Encoder::start_set ()
-    {
-        start_cons ( ASN1_Type::SET, static_cast < uint8_t > ( ASN1_Class::UNIVERSAL ) );
-        return *this;
-    }
-
-    DER_Encoder&
-    DER_Encoder::end_cons ()
-    {
-        if ( _subsequences.empty () )
+        if (_collect_elements)
         {
-            throw ASN1_EncodingError ( "end_cons() called without matching start_sequence/set/explicit" );
+            std::sort (_elements.begin (), _elements.end ());
+            for (const auto& e : _elements)
+            {
+                _contents.insert (_contents.end (), e.begin (), e.end ());
+            }
+            _elements.clear ();
+            _collect_elements = false;
         }
+        return std::move (_contents);
+    }
 
-        Subsequence sub = std::move ( _subsequences.back () );
-        _subsequences.pop_back ();
-
-        return add_object ( sub.tag, sub.class_tag, sub.contents );
+    BER_ObjectHeader
+    DER_Encoder::validate_one_der_tlv (std::span < const uint8_t > bytes)
+    {
+        DER_Decoder decoder (bytes);
+        BER_ObjectHeader h = decoder.validate_next_der_object ();
+        if (decoder.more_items ())
+        {
+            throw ASN1_EncodingError (ASN1_ErrorCode::INVALID_VALUE, "Expected exactly one DER TLV");
+        }
+        return h;
     }
 
     DER_Encoder&
-    DER_Encoder::start_explicit ( uint8_t tag_number )
+    DER_Encoder::append_encoded_tlv (std::span < const uint8_t > der)
     {
-        start_cons ( static_cast < ASN1_Type > ( tag_number ), static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) );
+        validate_one_der_tlv (der);
+        append_encoded (std::vector < uint8_t > (der.begin (), der.end ()));
         return *this;
     }
-
-    DER_Encoder&
-    DER_Encoder::end_explicit ()
-    {
-        return end_cons ();
-    }
-
-    DER_Encoder&
-    DER_Encoder::start_implicit_cons ( uint8_t tag_number )
-    {
-        start_cons ( static_cast < ASN1_Type > ( tag_number ), static_cast < uint8_t > ( ASN1_Class::CONTEXT_SPECIFIC ) );
-        return *this;
-    }
-
-    DER_Encoder&
-    DER_Encoder::end_implicit_cons ()
-    {
-        return end_cons ();
-    }
-
+    
 } // asn1pp

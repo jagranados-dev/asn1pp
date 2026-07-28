@@ -1,30 +1,13 @@
 /*********************************************************************************
  * MIT License
- *
  * Copyright (c) 2026 Jose Alberto Granados
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  *********************************************************************************/
 
 #include <asn1pp/printable_string.hpp>
 
-#include <utility>
+#include <ostream>
+
+#include <cctype>
 
 #include <asn1pp/asn1_errors.hpp>
 #include <asn1pp/ber_decoder.hpp>
@@ -34,73 +17,61 @@ namespace asn1pp
 {
 
     void
-    Printable_String::validate ( std::string_view str )
+    Printable_String::validate (std::string_view v)
     {
-        for ( char c : str )
+        static const std::string allowed = " '()+,-./:=?";
+        for (unsigned char c : v)
         {
-            bool valid = ( c >= 'a' && c <= 'z' ) ||
-                         ( c >= 'A' && c <= 'Z' ) ||
-                         ( c >= '0' && c <= '9' ) ||
-                         c == ' ' || c == '\'' || c == '(' || c == ')' ||
-                         c == '+' || c == ','  || c == '-' || c == '.' ||
-                         c == '/' || c == ':'  || c == '=' || c == '?';
-
-            if ( !valid )
+            if (!std::isalnum (c) && allowed.find (c) == std::string::npos)
             {
-                throw ASN1_InvalidArgument ( "Character invalid for ASN.1 PrintableString restricted charset" );
+                throw ASN1_InvalidArgument ("PrintableString contains a forbidden character");
             }
         }
     }
 
-    Printable_String::Printable_String ( std::string_view str )
-        : _value ( str )
+    Printable_String::Printable_String (std::string_view v)
     {
-        validate ( _value );
-    }
-
-    void
-    Printable_String::encode_into ( DER_Encoder& to ) const
-    {
-        to.encode ( _value, ASN1_Type::PRINTABLE_STRING, ASN1_Class::UNIVERSAL );
-    }
-
-    void
-    Printable_String::decode_from ( BER_Decoder& from )
-    {
-        std::string temp;
-        from.decode ( temp, ASN1_Type::PRINTABLE_STRING, ASN1_Class::UNIVERSAL );
-        validate ( temp );
-        _value = std::move ( temp );
+        assign (v);
     }
 
     const std::string&
-    Printable_String::get_string () const noexcept
+    Printable_String::value () const noexcept
     {
         return _value;
     }
 
-    bool
-    Printable_String::empty () const noexcept
+    void
+    Printable_String::assign (std::string_view v)
     {
-        return _value.empty ();
+        validate (v);
+        _value = v;
     }
 
     void
-    Printable_String::clear () noexcept
+    Printable_String::encode_into (DER_Encoder& to) const
     {
-        _value.clear ();
+        to.encode (_value, ASN1_Type::PRINTABLE_STRING);
     }
 
+    void
+    Printable_String::decode_from (BER_Decoder& from)
+    {
+        std::string v;
+        from.decode (v, ASN1_Type::PRINTABLE_STRING);
+        assign (v);
+    }
+    
     bool
-    Printable_String::operator== ( const Printable_String& other ) const noexcept
+    Printable_String::operator== (const Printable_String& other) const noexcept
     {
         return _value == other._value;
     }
 
-    bool
-    Printable_String::operator!= ( const Printable_String& other ) const noexcept
+    std::ostream&
+    operator<< (std::ostream& stream, const Printable_String& value)
     {
-        return !( *this == other );
+        stream << value._value;
+        return stream;
     }
 
 } // asn1pp

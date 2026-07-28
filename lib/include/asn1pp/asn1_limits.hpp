@@ -22,35 +22,31 @@
  * SOFTWARE.
  *********************************************************************************/
 
-#ifndef __ASN1PP_IA5_STRING_HPP_
-#define __ASN1PP_IA5_STRING_HPP_
+#ifndef __ASN1PP_ASN1_LIMITS_HPP_
+#define __ASN1PP_ASN1_LIMITS_HPP_
 
-#include <iosfwd>
-#include <string>
-#include <string_view>
-
-#include <asn1pp/asn1_object.hpp>
+#include <cstddef>
 
 namespace asn1pp
 {
-    
-    class IA5_String : public ASN1_Object
-    {
-    public:
-        IA5_String () = default;
-        explicit IA5_String (std::string_view value);
-        [[nodiscard]] const std::string& value () const noexcept;
-        void assign (std::string_view value);
-        void encode_into (DER_Encoder& to) const override;
-        void decode_from (BER_Decoder& from) override;
-        bool operator== (const IA5_String& other) const noexcept;
-        friend std::ostream& operator<< (std::ostream& stream, const IA5_String& value);
 
-    private:
-        static void validate (std::string_view value);
-        std::string _value;
+    struct BER_DecoderLimits
+    {
+        size_t max_input_size = 64u * 1024u * 1024u;
+        size_t max_element_size = 16u * 1024u * 1024u;
+        size_t max_depth = 128;
+        size_t max_items = 1000000;
+        size_t max_tag_octets = 10;
+        size_t max_length_octets = sizeof (size_t);
+        size_t max_integer_octets = 1024u * 1024u;
+        size_t max_oid_arcs = 4096;
     };
 
+    struct DER_EncoderLimits
+    {
+        size_t max_output_size = 64u * 1024u * 1024u;
+        size_t max_depth = 128;
+    };
+    
 } // asn1pp
-
-#endif // __ASN1PP_IA5_STRING_HPP_
+#endif // __ASN1PP_ASN1_LIMITS_HPP_

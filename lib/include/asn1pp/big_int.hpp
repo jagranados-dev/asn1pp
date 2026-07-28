@@ -25,128 +25,38 @@
 #ifndef __ASN1PP_BIG_INT_HPP_
 #define __ASN1PP_BIG_INT_HPP_
 
-#include <cstdint>
-#include <initializer_list>
 #include <iosfwd>
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <asn1pp/asn1_object.hpp>
 
-namespace asn1pp 
+namespace asn1pp
 {
 
-    /**
-     * @brief Represents an ASN.1 INTEGER of arbitrary precision (BigInteger).
-     * 
-     * Encapsulates a positive arbitrary-length integer stored as big-endian bytes.
-     * Automatically handles DER two's-complement rules (injecting/stripping leading
-     * 0x00 sign padding bytes when the most significant bit is set).
-     */
-    class Big_Int final : public ASN1_Object
+    class Big_Int : public ASN1_Object
     {
     public:
-        /**
-         * @brief Constructs an initialized Big_Int representing the value zero (0x00).
-         */
         Big_Int ();
+        explicit Big_Int (int64_t value);
+        explicit Big_Int (std::string_view decimal);
+        [[nodiscard]] const std::vector < uint8_t >& bytes () const noexcept;
+        [[nodiscard]] std::string to_decimal () const;
+        [[nodiscard]] bool negative () const noexcept;
+        void set_bytes (std::span < const uint8_t > value);
+        void set_decimal (std::string_view value);
+        void encode_into (DER_Encoder& to) const override;
+        void decode_from (BER_Decoder& from) override;
+        bool operator== (const Big_Int& other) const noexcept;
+        friend std::ostream& operator<< (std::ostream& stream, const Big_Int& value);
 
-        /**
-         * @brief Constructs a Big_Int from a standard 64-bit unsigned integer.
-         * @param val The numerical value.
-         */
-        explicit Big_Int ( uint64_t val );
-
-        /**
-         * @brief Constructs a Big_Int from a hexadecimal string representation.
-         * @param hex_str Formatted hex string (e.g., "00FF01" or "0xDEADBEEF").
-         */
-        explicit Big_Int ( std::string_view hex_str );
-
-        /**
-         * @brief Constructs a Big_Int from a raw byte vector in big-endian order.
-         * @param bytes The raw big-endian byte buffer.
-         */
-        explicit Big_Int ( std::vector < uint8_t > bytes );
-
-        /**
-         * @brief Constructs a Big_Int from a memory span of bytes in big-endian order.
-         * @param bytes Read-only view of the byte buffer.
-         */
-        explicit Big_Int ( std::span < const uint8_t > bytes );
-
-        /**
-         * @brief Constructs a Big_Int from an initializer list of bytes.
-         * @param bytes Initializer list of big-endian raw bytes.
-         */
-        Big_Int ( std::initializer_list < uint8_t > bytes );
-
-        ~Big_Int() override = default;
-
-        // Copy and move semantics
-        Big_Int ( const Big_Int& ) = default;
-        Big_Int& operator= ( const Big_Int& ) = default;
-        Big_Int ( Big_Int&& ) noexcept = default;
-        Big_Int& operator= ( Big_Int&& ) noexcept = default;
-
-        /**
-         * @brief Serializes this arbitrary-precision integer into a DER encoder stream.
-         * @param to The target DER encoder.
-         */
-        void encode_into ( DER_Encoder& to ) const override;
-
-        /**
-         * @brief Deserializes an arbitrary-precision integer from a BER decoder stream.
-         * @param from The source BER decoder.
-         */
-        void decode_from ( BER_Decoder& from ) override;
-
-        /**
-         * @brief Returns the read-only vector of normalized big-endian bytes (without DER sign padding).
-         */
-        [[nodiscard]] const std::vector < uint8_t >& get_bytes () const noexcept;
-
-        /**
-         * @brief Checks whether the integer evaluates to zero.
-         */
-        [[nodiscard]] bool is_zero () const noexcept;
-
-        /**
-         * @brief Resets the integer value to zero (0x00).
-         */
-        void clear () noexcept;
-
-        /**
-         * @brief Converts the big integer to a standard uint64_t if within bounds.
-         * @return The 64-bit integer representation.
-         * @throws ASN1_InvalidArgument if the stored value exceeds uint64_t limits.
-         */
-        [[nodiscard]] uint64_t to_uint64 () const;
-
-        /**
-         * @brief Formats the integer as an uppercase hexadecimal string.
-         * @return Uppercase hexadecimal representation (without "0x" prefix).
-         */
-        [[nodiscard]] std::string to_string () const;
-
-        // Relational operators for numerical comparison
-        [[nodiscard]] bool operator== ( const Big_Int& other ) const noexcept;
-        [[nodiscard]] bool operator!= ( const Big_Int& other ) const noexcept;
-        [[nodiscard]] bool operator< ( const Big_Int& other ) const noexcept;
-        [[nodiscard]] bool operator<= ( const Big_Int& other ) const noexcept;
-        [[nodiscard]] bool operator> ( const Big_Int& other ) const noexcept;
-        [[nodiscard]] bool operator>= ( const Big_Int& other ) const noexcept;
     private:
-        void normalize ();
-
+        static std::vector < uint8_t > canonicalize (std::span < const uint8_t > value);
         std::vector < uint8_t > _bytes;
     };
-
-    /**
-     * @brief Stream insertion operator for printing Big_Int hexadecimal values.
-     */
-    std::ostream& operator<< ( std::ostream& os, const Big_Int& big_int );
 
 } // asn1pp
 

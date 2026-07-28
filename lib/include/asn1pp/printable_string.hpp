@@ -25,6 +25,7 @@
 #ifndef __ASN1PP_PRINTABLE_STRING_HPP_
 #define __ASN1PP_PRINTABLE_STRING_HPP_
 
+#include <iosfwd>
 #include <string>
 #include <string_view>
 
@@ -33,32 +34,20 @@
 namespace asn1pp
 {
 
-    /**
-     * @brief Represents an ASN.1 PrintableString (Restricted character set, Tag 0x13).
-     */
-    class Printable_String final : public ASN1_Object
+    class Printable_String : public ASN1_Object
     {
     public:
         Printable_String () = default;
-        explicit Printable_String ( std::string_view str );
-        ~Printable_String () override = default;
+        explicit Printable_String (std::string_view value);
+        [[nodiscard]] const std::string& value () const noexcept;
+        void assign (std::string_view value);
+        void encode_into (DER_Encoder& to) const override;
+        void decode_from (BER_Decoder& from) override;
+        bool operator== (const Printable_String& other) const noexcept;
+        friend std::ostream& operator<< (std::ostream& stream, const Printable_String& value);
 
-        Printable_String ( const Printable_String& ) = default;
-        Printable_String& operator= ( const Printable_String& ) = default;
-        Printable_String ( Printable_String&& ) noexcept = default;
-        Printable_String& operator= ( Printable_String&& ) noexcept = default;
-
-        void encode_into ( DER_Encoder& to ) const override;
-        void decode_from ( BER_Decoder& from ) override;
-
-        [[nodiscard]] const std::string& get_string () const noexcept;
-        [[nodiscard]] bool empty () const noexcept;
-        void clear () noexcept;
-
-        [[nodiscard]] bool operator== ( const Printable_String& other ) const noexcept;
-        [[nodiscard]] bool operator!= ( const Printable_String& other ) const noexcept;
     private:
-        static void validate ( std::string_view str );
+        static void validate (std::string_view value);
         std::string _value;
     };
 

@@ -34,22 +34,25 @@ jobs:
         uses: actions/checkout@v4
 
       # Step 2: Configure the project using CMake
-      - name: Configure CMake
+      - name: Configure
         run: >
           cmake -B ${{ github.workspace }}/build
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DASN1PP_BUILD_TESTS=ON
+          -DASN1PP_BUILD_EXAMPLES=ON
+          -DASN1PP_WARNINGS_AS_ERRORS=ON
 
-      # Step 3: Build the core library and the test binaries
-      - name: Build Library and Test Binaries
+      # Step 3: Build the core PPrary and the test binaries
+      - name: Build
         run: >
           cmake --build ${{ github.workspace }}/build
           --config ${{ matrix.build_type }}
-          --parallel 4
+          --parallel
 
       # Step 4: Execute Catch2 test suite via CTest with detailed output on failure
-      - name: Run CTest Suite
+      - name: Test
         working-directory: ${{ github.workspace }}/build
         run: >
           ctest --build-config ${{ matrix.build_type }}
           --output-on-failure
-          --parallel 2
+          --parallel

@@ -26,60 +26,54 @@
 #define __ASN1PP_ASN1_TYPES_HPP_
 
 #include <cstdint>
-#include <vector>
 
 namespace asn1pp
 {
 
-    /**
-     * @brief Universal ASN.1 Type Tags (ITU-T X.680)
-     */
-    enum class ASN1_Type : uint8_t
+    enum class ASN1_Type : uint64_t
     {
-        EOC              = 0x00,
-        BOOLEAN          = 0x01,
-        INTEGER          = 0x02,
-        BIT_STRING       = 0x03,
-        OCTET_STRING     = 0x04,
-        NULL_TAG         = 0x05,
-        OBJECT_ID        = 0x06,
-        ENUMERATED       = 0x0A,
-        UTF8_STRING      = 0x0C,
-        SEQUENCE         = 0x10,
-        SET              = 0x11,
-        PRINTABLE_STRING = 0x13,
-        IA5_STRING       = 0x16,
-        UTC_TIME         = 0x17,
-        GENERALIZED_TIME = 0x18
+        EOC = 0,
+        BOOLEAN = 1,
+        INTEGER = 2,
+        BIT_STRING = 3,
+        OCTET_STRING = 4,
+        NULL_TAG = 5,
+        OBJECT_ID = 6,
+        ENUMERATED = 10,
+        UTF8_STRING = 12,
+        SEQUENCE = 16,
+        SET = 17,
+        PRINTABLE_STRING = 19,
+        IA5_STRING = 22,
+        UTC_TIME = 23,
+        GENERALIZED_TIME = 24
     };
 
-    /**
-     * @brief ASN.1 Tag Classes and Construction Flags
-     */
+    enum class ASN1_TagClass : uint8_t
+    {
+        UNIVERSAL = 0x00,
+        APPLICATION = 0x40,
+        CONTEXT_SPECIFIC = 0x80,
+        PRIVATE = 0xC0
+    };
+
     enum class ASN1_Class : uint8_t
     {
-        UNIVERSAL        = 0x00,
-        APPLICATION      = 0x40,
+        UNIVERSAL = 0x00,
+        APPLICATION = 0x40,
         CONTEXT_SPECIFIC = 0x80,
-        PRIVATE          = 0xC0,
-        CONSTRUCTED      = 0x20,
-        EXPLICIT         = 0xA0 // CONTEXT_SPECIFIC | CONSTRUCTED
+        PRIVATE = 0xC0,
+        CONSTRUCTED = 0x20,
+        EXPLICIT = 0xA0
     };
 
-    inline constexpr uint8_t operator| ( ASN1_Class lhs, ASN1_Class rhs ) noexcept
+    struct ASN1_Tag
     {
-        return static_cast < uint8_t > ( static_cast < uint8_t > ( lhs ) | static_cast < uint8_t > ( rhs ) );
-    }
-
-    inline constexpr uint8_t operator| ( ASN1_Class lhs, uint8_t rhs ) noexcept
-    {
-        return static_cast < uint8_t > ( static_cast < uint8_t > ( lhs ) | rhs );
-    }
-
-    inline constexpr uint8_t operator| ( uint8_t lhs, ASN1_Class rhs ) noexcept
-    {
-        return static_cast < uint8_t > ( lhs | static_cast < uint8_t > ( rhs ) );
-    }
+        ASN1_TagClass tag_class;
+        bool constructed;
+        uint64_t number;
+        bool operator== (const ASN1_Tag& other) const noexcept = default;
+    };
 
 } // asn1pp
 

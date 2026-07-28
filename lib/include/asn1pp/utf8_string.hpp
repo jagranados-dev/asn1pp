@@ -22,8 +22,8 @@
  * SOFTWARE.
  *********************************************************************************/
 
-#ifndef __ASN1PP_IA5_STRING_HPP_
-#define __ASN1PP_IA5_STRING_HPP_
+#ifndef __ASN1PP_UTF8_STRING_HPP_
+#define __ASN1PP_UTF8_STRING_HPP_
 
 #include <iosfwd>
 #include <string>
@@ -33,18 +33,18 @@
 
 namespace asn1pp
 {
-    
-    class IA5_String : public ASN1_Object
+
+    class UTF8_String : public ASN1_Object
     {
     public:
-        IA5_String () = default;
-        explicit IA5_String (std::string_view value);
+        UTF8_String () = default;
+        explicit UTF8_String (std::string_view value);
         [[nodiscard]] const std::string& value () const noexcept;
         void assign (std::string_view value);
         void encode_into (DER_Encoder& to) const override;
         void decode_from (BER_Decoder& from) override;
-        bool operator== (const IA5_String& other) const noexcept;
-        friend std::ostream& operator<< (std::ostream& stream, const IA5_String& value);
+        bool operator== (const UTF8_String& other) const noexcept;
+        friend std::ostream& operator<< (std::ostream& stream, const UTF8_String& value);
 
     private:
         static void validate (std::string_view value);
@@ -53,4 +53,4 @@ namespace asn1pp
 
 } // asn1pp
 
-#endif // __ASN1PP_IA5_STRING_HPP_
+#endif // __ASN1PP_UTF8_STRING_HPP_

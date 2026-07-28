@@ -22,35 +22,31 @@
  * SOFTWARE.
  *********************************************************************************/
 
-#ifndef __ASN1PP_IA5_STRING_HPP_
-#define __ASN1PP_IA5_STRING_HPP_
+#ifndef __ASN1PP_ASN1PP_HPP_
+#define __ASN1PP_ASN1PP_HPP_
 
-#include <iosfwd>
-#include <string>
-#include <string_view>
-
+#include <asn1pp/asn1_types.hpp>
+#include <asn1pp/asn1_errors.hpp>
+#include <asn1pp/asn1_limits.hpp>
 #include <asn1pp/asn1_object.hpp>
+#include <asn1pp/ber_decoder.hpp>
+#include <asn1pp/der_decoder.hpp>
+#include <asn1pp/der_encoder.hpp>
+#include <asn1pp/big_int.hpp>
+#include <asn1pp/bit_string.hpp>
+#include <asn1pp/octet_string.hpp>
+#include <asn1pp/utf8_string.hpp>
+#include <asn1pp/ia5_string.hpp>
+#include <asn1pp/printable_string.hpp>
+#include <asn1pp/asn1_any.hpp>
+#include <asn1pp/asn1_time.hpp>
+#include <asn1pp/oid.hpp>
+#include <asn1pp/sequence_of.hpp>
+#include <asn1pp/set_of.hpp>
+#include <asn1pp/fixed_string.hpp>
+#include <asn1pp/implicit_tagged.hpp>
+#include <asn1pp/explicit_tagged.hpp>
+#include <asn1pp/choice_alternative.hpp>
+#include <asn1pp/choice_of.hpp>
 
-namespace asn1pp
-{
-    
-    class IA5_String : public ASN1_Object
-    {
-    public:
-        IA5_String () = default;
-        explicit IA5_String (std::string_view value);
-        [[nodiscard]] const std::string& value () const noexcept;
-        void assign (std::string_view value);
-        void encode_into (DER_Encoder& to) const override;
-        void decode_from (BER_Decoder& from) override;
-        bool operator== (const IA5_String& other) const noexcept;
-        friend std::ostream& operator<< (std::ostream& stream, const IA5_String& value);
-
-    private:
-        static void validate (std::string_view value);
-        std::string _value;
-    };
-
-} // asn1pp
-
-#endif // __ASN1PP_IA5_STRING_HPP_
+#endif // __ASN1PP_ASN1PP_HPP_

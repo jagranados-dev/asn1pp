@@ -22,35 +22,26 @@
  * SOFTWARE.
  *********************************************************************************/
 
-#ifndef __ASN1PP_IA5_STRING_HPP_
-#define __ASN1PP_IA5_STRING_HPP_
+#ifndef __ASN1PP_DER_DECODER_HPP_
+#define __ASN1PP_DER_DECODER_HPP_
 
-#include <iosfwd>
-#include <string>
-#include <string_view>
+#include <cstdint>
+#include <span>
+#include <vector>
 
-#include <asn1pp/asn1_object.hpp>
+#include <asn1pp/ber_decoder.hpp>
 
 namespace asn1pp
 {
-    
-    class IA5_String : public ASN1_Object
+
+    class DER_Decoder final : public BER_Decoder
     {
     public:
-        IA5_String () = default;
-        explicit IA5_String (std::string_view value);
-        [[nodiscard]] const std::string& value () const noexcept;
-        void assign (std::string_view value);
-        void encode_into (DER_Encoder& to) const override;
-        void decode_from (BER_Decoder& from) override;
-        bool operator== (const IA5_String& other) const noexcept;
-        friend std::ostream& operator<< (std::ostream& stream, const IA5_String& value);
-
-    private:
-        static void validate (std::string_view value);
-        std::string _value;
+        explicit DER_Decoder (std::span < const uint8_t > data, BER_DecoderLimits limits = {});
+        explicit DER_Decoder (const std::vector < uint8_t >& data, BER_DecoderLimits limits = {});
+        explicit DER_Decoder (const std::vector < uint8_t >&& data) = delete;
     };
 
 } // asn1pp
 
-#endif // __ASN1PP_IA5_STRING_HPP_
+#endif // __ASN1PP_DER_DECODER_HPP_

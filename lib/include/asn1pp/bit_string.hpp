@@ -25,110 +25,36 @@
 #ifndef __ASN1PP_BIT_STRING_HPP_
 #define __ASN1PP_BIT_STRING_HPP_
 
-#include <initializer_list>
+#include <iosfwd>
+#include <cstddef>
+#include <cstdint>
 #include <span>
-#include <string>
+#include <vector>
 
 #include <asn1pp/asn1_object.hpp>
 
-namespace asn1pp 
+namespace asn1pp
 {
 
-    /**
-     * @brief Represents an ASN.1 BIT STRING.
-     * 
-     * Encapsulates an arbitrary sequence of bits stored as bytes, along with
-     * the count of unused padding bits (0 to 7) in the final byte according to
-     * ITU-T X.690 DER/BER encoding rules.
-     */
-    class Bit_String final : public ASN1_Object
+    class Bit_String : public ASN1_Object
     {
     public:
-        /**
-         * @brief Constructs an empty BIT STRING.
-         */
-        Bit_String () = default;
+        Bit_String ();
+        Bit_String (std::span < const uint8_t > bytes, uint8_t unused_bits = 0);
+        [[nodiscard]] const std::vector < uint8_t >& bytes () const noexcept;
+        [[nodiscard]] uint8_t unused_bits () const noexcept;
+        [[nodiscard]] size_t bit_count () const noexcept;
+        void assign (std::span < const uint8_t > bytes, uint8_t unused_bits = 0);
+        void encode_into (DER_Encoder& to) const override;
+        void decode_from (BER_Decoder& from) override;
+        bool operator== (const Bit_String& other) const noexcept;
+        friend std::ostream& operator<< (std::ostream& stream, const Bit_String& value);
 
-        /**
-         * @brief Constructs a BIT STRING from a vector of bytes and unused bit count.
-         * @param bits The raw byte buffer representing the bit sequence.
-         * @param unused_bits Number of padding bits in the last byte (0 to 7).
-         */
-        explicit Bit_String ( std::vector < uint8_t > bits, uint8_t unused_bits = 0 );
-
-        /**
-         * @brief Constructs a BIT STRING from a memory span of bytes and unused bit count.
-         * @param bits Read-only view of the byte buffer.
-         * @param unused_bits Number of padding bits in the last byte (0 to 7).
-         */
-        explicit Bit_String ( std::span < const uint8_t > bits, uint8_t unused_bits = 0 );
-
-        /**
-         * @brief Constructs a BIT STRING from an initializer list of bytes.
-         * @param bits Initializer list of raw bytes.
-         * @param unused_bits Number of padding bits in the last byte (0 to 7).
-         */
-        Bit_String ( std::initializer_list < uint8_t > bits, uint8_t unused_bits = 0 );
-
-        ~Bit_String() override = default;
-
-        // Copy and move semantics
-        Bit_String ( const Bit_String& ) = default;
-        Bit_String& operator= ( const Bit_String& ) = default;
-        Bit_String ( Bit_String&& ) noexcept = default;
-        Bit_String& operator= ( Bit_String&& ) noexcept = default;
-
-        /**
-         * @brief Serializes this BIT STRING into a DER encoder stream.
-         * @param to The target DER encoder.
-         */
-        void encode_into ( DER_Encoder& to ) const override;
-
-        /**
-         * @brief Deserializes a BIT STRING from a BER decoder stream.
-         * @param from The source BER decoder.
-         */
-        void decode_from ( BER_Decoder& from ) override;
-
-        /**
-         * @brief Returns the read-only vector of underlying bytes.
-         */
-        [[nodiscard]] const std::vector < uint8_t >& get_bits () const noexcept;
-
-        /**
-         * @brief Returns the number of unused padding bits in the last byte (0 to 7).
-         */
-        [[nodiscard]] uint8_t get_unused_bits () const noexcept;
-
-        /**
-         * @brief Checks whether the BIT STRING contains no data bytes.
-         */
-        [[nodiscard]] bool empty () const noexcept;
-
-        /**
-         * @brief Clears all bytes and resets unused bits to zero.
-         */
-        void clear () noexcept;
-
-        /**
-         * @brief Formats the underlying byte buffer as a hexadecimal string.
-         * @return Uppercase hexadecimal string representation.
-         */
-        [[nodiscard]] std::string to_string () const;
-
-        // Relational operators for ordering and equality checks
-        [[nodiscard]] bool operator== ( const Bit_String& other ) const noexcept;
-        [[nodiscard]] bool operator!= ( const Bit_String& other ) const noexcept;
-        [[nodiscard]] bool operator< ( const Bit_String& other ) const noexcept;
     private:
-        std::vector < uint8_t > _bits;
-        uint8_t _unused_bits = 0;
+        void validate () const;
+        std::vector < uint8_t > _bytes;
+        uint8_t _unused_bits;
     };
-
-    /**
-     * @brief Stream insertion operator for printing Bit_String hex representations.
-     */
-    std::ostream& operator<< ( std::ostream& os, const Bit_String& bit_string );
 
 } // asn1pp
 
