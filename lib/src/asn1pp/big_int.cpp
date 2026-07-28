@@ -170,7 +170,7 @@ namespace asn1pp
                 b = static_cast < uint8_t > ( x / 10 );
                 r = x % 10;
             }
-            out.push_back ('0' + r);
+            out.push_back ('0' + (uint8_t) r);
             while (mag.size () > 1 && mag[0] == 0)
             {
                 mag.erase (mag.begin ());
