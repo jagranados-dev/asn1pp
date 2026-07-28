@@ -404,9 +404,8 @@ The current core library does not implement:
 - PER;
 - OER;
 - JER;
-- XER in the core binary codec;
+- XER;
 - ASN.1 schema parsing or C++ code generation;
-- automatic `CHOICE` handling;
 - arbitrary-precision OBJECT IDENTIFIER arcs beyond `uint64_t`;
 - general-purpose polymorphic equality for `ASN1_Object`.
 
