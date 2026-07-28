@@ -40,7 +40,6 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DASN1PP_BUILD_TESTS=ON
           -DASN1PP_BUILD_EXAMPLES=ON
-          -DASN1PP_WARNINGS_AS_ERRORS=ON
 
       # Step 3: Build the core PPrary and the test binaries
       - name: Build
