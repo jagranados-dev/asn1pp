@@ -98,7 +98,7 @@ namespace asn1pp
             }
             if (carry)
             {
-                mag.insert (mag.begin (), carry);
+                mag.insert (mag.begin (), static_cast < uint8_t > (carry));
             }
         }
         while (mag.size () > 1 && mag[0] == 0)
@@ -163,10 +163,10 @@ namespace asn1pp
         std::string out;
         while (!(mag.size () == 1 && mag[0] == 0))
         {
-            unsigned r = 0;
+            uint8_t r = 0;
             for (auto& b : mag)
             {
-                unsigned x = (r << 8) | b;
+                uint8_t x = (r << 8) | b;
                 b = x / 10;
                 r = x % 10;
             }
