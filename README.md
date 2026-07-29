@@ -439,12 +439,6 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-## License
-
-This project is distributed under the MIT License.
-
-Copyright © 2026 Jose Alberto Granados.
-
 ## CMake presets
 
 For local development with Ninja:
@@ -533,3 +527,9 @@ Tests and examples default to enabled only when this repository is the top-level
 ## Development and security
 
 See `CONTRIBUTING.md` for build, formatting, test, and documentation requirements. See `SECURITY.md` for reporting parser, resource-exhaustion, and memory-safety issues.
+
+## License
+
+This project is distributed under the MIT License.
+
+Copyright © 2026 Jose Alberto Granados.
