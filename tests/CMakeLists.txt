@@ -24,6 +24,7 @@ set(ASN1PP_TEST_SOURCES
     error_and_metadata_tests.cpp
     tagging_and_choice_tests.cpp
     value_object_tests.cpp
+pkix_cms_support_tests.cpp
 )
 
 add_executable(asn1pp_tests ${ASN1PP_TEST_SOURCES})

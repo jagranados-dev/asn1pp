@@ -34,13 +34,19 @@ namespace asn1pp
     class DER_Encoder;
     class BER_Decoder;
 
+    /** @brief Polymorphic base class for reusable ASN.1 values. */
     class ASN1_Object
     {
     public:
+        /** @brief Destroys an ASN.1 value polymorphically. */
         virtual ~ASN1_Object () = default;
+        /** @brief Appends this value to a DER encoder. */
         virtual void encode_into (DER_Encoder& to) const = 0;
+        /** @brief Decodes this value transactionally from a BER decoder. */
         virtual void decode_from (BER_Decoder& from) = 0;
+        /** @brief Returns the canonical DER encoding of this value. */
         [[nodiscard]] std::vector < uint8_t > DER_encode () const;
+        /** @brief Returns the canonical BER-compatible DER encoding of this value. */
         [[nodiscard]] std::vector < uint8_t > BER_encode () const;
     };
 

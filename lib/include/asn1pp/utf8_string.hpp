@@ -34,6 +34,7 @@
 namespace asn1pp
 {
 
+    /** @brief Validated ASN.1 UTF8String value. */
     class UTF8_String : public ASN1_Object
     {
     public:

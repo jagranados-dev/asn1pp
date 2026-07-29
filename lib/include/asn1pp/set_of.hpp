@@ -36,6 +36,7 @@
 namespace asn1pp
 {
 
+    /** @brief Homogeneous ASN.1 SET OF container with canonical DER ordering. */
     template < typename T >
     class Set_Of : public ASN1_Object
     {

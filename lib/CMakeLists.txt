@@ -10,12 +10,16 @@ set(ASN1PP_SOURCES
     src/asn1pp/asn1_time.cpp
     src/asn1pp/ber_decoder.cpp
     src/asn1pp/big_int.cpp
+src/asn1pp/binary_time.cpp
     src/asn1pp/bit_string.cpp
+src/asn1pp/character_strings.cpp
     src/asn1pp/der_decoder.cpp
     src/asn1pp/der_encoder.cpp
     src/asn1pp/ia5_string.cpp
     src/asn1pp/octet_string.cpp
     src/asn1pp/oid.cpp
+src/asn1pp/open_type_registry.cpp
+src/asn1pp/pki_types.cpp
     src/asn1pp/printable_string.cpp
     src/asn1pp/utf8_string.cpp
 )

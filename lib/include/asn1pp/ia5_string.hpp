@@ -34,6 +34,7 @@
 namespace asn1pp
 {
     
+    /** @brief Validated seven-bit ASN.1 IA5String value. */
     class IA5_String : public ASN1_Object
     {
     public:

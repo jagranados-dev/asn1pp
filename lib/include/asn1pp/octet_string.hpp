@@ -35,6 +35,7 @@
 namespace asn1pp
 {
 
+    /** @brief ASN.1 OCTET STRING value supporting BER fragment decoding. */
     class Octet_String : public ASN1_Object
     {
     public:

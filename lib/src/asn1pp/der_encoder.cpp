@@ -139,7 +139,10 @@ namespace asn1pp
             b.push_back (rev[--n]);
         }
         return add_object (
-            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u), false, static_cast < uint64_t > (t)}, b);
+            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u),
+             false,
+             static_cast < uint64_t > (t)},
+            b);
     }
 
     DER_Encoder&
@@ -167,7 +170,10 @@ namespace asn1pp
     DER_Encoder::encode (std::span < const uint8_t > v, ASN1_Type t, ASN1_Class c)
     {
         return add_object (
-            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u), false, static_cast < uint64_t > (t)}, v);
+            {static_cast < ASN1_TagClass > (static_cast < uint8_t > (c) & 0xC0u),
+             false,
+             static_cast < uint64_t > (t)},
+            v);
     }
 
     DER_Encoder&

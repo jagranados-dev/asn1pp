@@ -84,7 +84,7 @@ The library includes reusable objects derived from `ASN1_Object`:
 - `UTF8_String` — validated UTF8String;
 - `IA5_String` — validated seven-bit IA5String;
 - `Printable_String` — validated PrintableString;
-- `ASN1_Any` — one preserved and validated DER TLV;
+- `ASN1_Any` — one preserved BER TLV with DER canonicality tracking;
 - `ASN1_Time` — canonical UTCTime or GeneralizedTime;
 - `OID` — OBJECT IDENTIFIER using numeric arcs;
 - `Sequence_Of<T>` — homogeneous SEQUENCE OF container;
@@ -409,7 +409,7 @@ The current core library does not implement:
 - arbitrary-precision OBJECT IDENTIFIER arcs beyond `uint64_t`;
 - general-purpose polymorphic equality for `ASN1_Object`.
 
-`ASN1_Any` preserves exactly one complete canonical DER TLV. It is not a schema-aware open-type registry.
+`ASN1_Any` preserves exactly one complete BER TLV and reports whether the preserved encoding is canonical DER. DER encoding rejects non-canonical preserved values. It is not a schema-aware open-type registry.
 
 ## Documentation
 

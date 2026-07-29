@@ -36,6 +36,7 @@
 namespace asn1pp
 {
 
+    /** @brief Homogeneous ASN.1 SEQUENCE OF container. */
     template < typename T >
     class Sequence_Of : public ASN1_Object
     {

@@ -70,13 +70,10 @@ namespace asn1pp
     void
     Bit_String::decode_from (BER_Decoder& from)
     {
-        std::vector < uint8_t > v;
-        from.decode (v, ASN1_Type::BIT_STRING);
-        if (v.empty ())
-        {
-            throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, 0, "BIT STRING lacks unused-bit octet");
-        }
-        assign (std::span < const uint8_t > (v).subspan (1), v[0]);
+        std::vector < uint8_t > value;
+        uint8_t unused_bits = 0;
+        from.decode_bit_string (value, unused_bits);
+        assign (value, unused_bits);
     }
     
     bool
@@ -88,7 +85,12 @@ namespace asn1pp
     std::ostream&
     operator<< (std::ostream& stream, const Bit_String& value)
     {
-        stream << '\''; for (size_t index = 0; index < value.bit_count (); ++index) { stream << ((value._bytes[index / 8] & (0x80u >> (index % 8))) ? '1' : '0'); } stream << "'B";
+        stream << '\'';
+        for (size_t index = 0; index < value.bit_count (); ++index)
+        {
+            stream << ((value._bytes[index / 8] & (0x80u >> (index % 8))) ? '1' : '0');
+        }
+        stream << "'B";
         return stream;
     }
 

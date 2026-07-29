@@ -34,6 +34,7 @@
 namespace asn1pp
 {
 
+    /** @brief BER decoder configured to enforce canonical DER. */
     class DER_Decoder final : public BER_Decoder
     {
     public:

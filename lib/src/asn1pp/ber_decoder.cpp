@@ -525,6 +525,128 @@ namespace asn1pp
     }
 
     BER_Decoder&
+    BER_Decoder::decode_string_bytes (std::vector < uint8_t >& out, ASN1_Type type, ASN1_Class cls)
+    {
+        State state = save_state ();
+        try
+        {
+            const auto header = peek_next_header ();
+            const ASN1_TagClass expected_class = tag_class (cls);
+            const uint64_t expected_number = static_cast < uint64_t > (type);
+            if (!header || header->tag.tag_class != expected_class || header->tag.number != expected_number)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::TAG_MISMATCH, offset (), "Unexpected BER string identifier");
+            }
+            if (!header->tag.constructed)
+            {
+                return decode (out, type, cls);
+            }
+            if (_strict_der)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, offset (), "DER requires a primitive string encoding");
+            }
+            std::vector < uint8_t > result;
+            decode_constructed (
+                {expected_class, true, expected_number},
+                [&] (BER_Decoder& child)
+                {
+                    while (child.more_items ())
+                    {
+                        std::vector < uint8_t > fragment;
+                        child.decode_string_bytes (fragment, type);
+                        if (fragment.size () > _limits.max_element_size - result.size ())
+                        {
+                            throw ASN1_DecodingError (
+                                ASN1_ErrorCode::LIMIT_EXCEEDED,
+                                child.offset (),
+                                "Constructed string exceeds the configured limit");
+                        }
+                        result.insert (result.end (), fragment.begin (), fragment.end ());
+                    }
+                });
+            out = std::move (result);
+            return *this;
+        }
+        catch (...)
+        {
+            restore_state (state);
+            throw;
+        }
+    }
+
+    BER_Decoder&
+    BER_Decoder::decode_bit_string (
+        std::vector < uint8_t >& out, uint8_t& unused_bits, ASN1_Type type, ASN1_Class cls)
+    {
+        State state = save_state ();
+        try
+        {
+            const auto header = peek_next_header ();
+            const ASN1_TagClass expected_class = tag_class (cls);
+            const uint64_t expected_number = static_cast < uint64_t > (type);
+            if (!header || header->tag.tag_class != expected_class || header->tag.number != expected_number)
+            {
+                throw ASN1_DecodingError (ASN1_ErrorCode::TAG_MISMATCH, offset (), "Unexpected BIT STRING identifier");
+            }
+            if (!header->tag.constructed)
+            {
+                std::vector < uint8_t > encoded;
+                decode (encoded, type, cls);
+                if (encoded.empty () || encoded[0] > 7 || (encoded.size () == 1 && encoded[0] != 0))
+                {
+                    throw ASN1_DecodingError (ASN1_ErrorCode::INVALID_VALUE, offset (), "Invalid BIT STRING contents");
+                }
+                out.assign (encoded.begin () + 1, encoded.end ());
+                unused_bits = encoded[0];
+                return *this;
+            }
+            if (_strict_der)
+            {
+                throw ASN1_DecodingError (
+                    ASN1_ErrorCode::NON_CANONICAL_DER, offset (), "DER requires a primitive BIT STRING encoding");
+            }
+            std::vector < uint8_t > result;
+            uint8_t final_unused_bits = 0;
+            decode_constructed (
+                {expected_class, true, expected_number},
+                [&] (BER_Decoder& child)
+                {
+                    while (child.more_items ())
+                    {
+                        std::vector < uint8_t > fragment;
+                        uint8_t fragment_unused_bits = 0;
+                        child.decode_bit_string (fragment, fragment_unused_bits);
+                        if (child.more_items () && fragment_unused_bits != 0)
+                        {
+                            throw ASN1_DecodingError (
+                                ASN1_ErrorCode::INVALID_VALUE,
+                                child.offset (),
+                                "Only the final BIT STRING component may contain unused bits");
+                        }
+                        if (fragment.size () > _limits.max_element_size - result.size ())
+                        {
+                            throw ASN1_DecodingError (
+                                ASN1_ErrorCode::LIMIT_EXCEEDED,
+                                child.offset (),
+                                "Constructed BIT STRING exceeds the configured limit");
+                        }
+                        result.insert (result.end (), fragment.begin (), fragment.end ());
+                        final_unused_bits = fragment_unused_bits;
+                    }
+                });
+            out = std::move (result);
+            unused_bits = final_unused_bits;
+            return *this;
+        }
+        catch (...)
+        {
+            restore_state (state);
+            throw;
+        }
+    }
+
+    BER_Decoder&
     BER_Decoder::decode (ASN1_Object& out)
     {
         State s = save_state ();

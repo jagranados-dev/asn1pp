@@ -40,6 +40,7 @@ namespace asn1pp
         GENERALIZED
     };
 
+    /** @brief Canonical PKIX UTCTime or GeneralizedTime value. */
     class ASN1_Time : public ASN1_Object
     {
     public:

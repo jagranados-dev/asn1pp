@@ -36,6 +36,7 @@
 namespace asn1pp
 {
 
+    /** @brief ASN.1 BIT STRING with explicit unused-bit tracking. */
     class Bit_String : public ASN1_Object
     {
     public:

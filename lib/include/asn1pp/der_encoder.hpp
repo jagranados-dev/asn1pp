@@ -44,6 +44,7 @@ namespace asn1pp
 
     struct BER_ObjectHeader;
 
+    /** @brief Canonical Distinguished Encoding Rules encoder. */
     class DER_Encoder
     {
     public:
@@ -108,14 +109,15 @@ namespace asn1pp
         encode_set (Callback&& callback)
         {
             return encode_constructed (
-                {ASN1_TagClass::UNIVERSAL, true, 17}, false, std::forward < Callback > (callback));
+                {ASN1_TagClass::UNIVERSAL, true, 17}, true, std::forward < Callback > (callback));
         }
 
         template < typename Callback >
         DER_Encoder&
         encode_set_of (Callback&& callback)
         {
-            return encode_constructed ({ASN1_TagClass::UNIVERSAL, true, 17}, true, std::forward < Callback > (callback));
+            return encode_constructed (
+                {ASN1_TagClass::UNIVERSAL, true, 17}, true, std::forward < Callback > (callback));
         }
 
         template < typename Callback >

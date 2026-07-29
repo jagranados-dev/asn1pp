@@ -39,7 +39,7 @@ namespace asn1pp
     void
     Octet_String::decode_from (BER_Decoder& from)
     {
-        from.decode (_value);
+        from.decode_string_bytes (_value);
     }
     
     bool
@@ -51,7 +51,11 @@ namespace asn1pp
     std::ostream&
     operator<< (std::ostream& stream, const Octet_String& value)
     {
-        static constexpr char digits[] = "0123456789ABCDEF"; for (uint8_t octet : value._value) { stream << digits[octet >> 4] << digits[octet & 0x0Fu]; }
+        static constexpr char digits[] = "0123456789ABCDEF";
+        for (uint8_t octet : value._value)
+        {
+            stream << digits[octet >> 4] << digits[octet & 0x0Fu];
+        }
         return stream;
     }
 

@@ -34,6 +34,7 @@
 namespace asn1pp
 {
 
+    /** @brief Validated ASN.1 PrintableString value. */
     class Printable_String : public ASN1_Object
     {
     public:

@@ -43,6 +43,7 @@ namespace asn1pp
     
     class ASN1_Object;
 
+    /** @brief Parsed BER identifier and length metadata. */
     struct BER_ObjectHeader
     {
         ASN1_Tag tag;
@@ -52,12 +53,14 @@ namespace asn1pp
         bool indefinite_length;
     };
 
+    /** @brief Parsed BER metadata and borrowed content octets. */
     struct BER_ValueView
     {
         BER_ObjectHeader header;
         std::span < const uint8_t > value;
     };
 
+    /** @brief Transactional BER decoder with configurable resource limits. */
     class BER_Decoder
     {
     public:
@@ -82,6 +85,30 @@ namespace asn1pp
         BER_Decoder&
         decode (std::string& out, ASN1_Type type = ASN1_Type::UTF8_STRING, ASN1_Class cls = ASN1_Class::UNIVERSAL);
         BER_Decoder& decode (ASN1_Object& out);
+        /**
+         * @brief Decodes a primitive or constructed BER string into octets.
+         * @param out Concatenated logical contents.
+         * @param type Universal string type expected at the outer identifier.
+         * @param cls Identifier class used by an implicitly tagged outer value.
+         * @return This decoder.
+         */
+        BER_Decoder& decode_string_bytes (
+            std::vector < uint8_t >& out,
+            ASN1_Type type = ASN1_Type::OCTET_STRING,
+            ASN1_Class cls = ASN1_Class::UNIVERSAL);
+        /**
+         * @brief Decodes a primitive or constructed BER BIT STRING.
+         * @param out Concatenated data octets without the unused-bit count.
+         * @param unused_bits Number of unused bits in the final data octet.
+         * @param type Universal type expected at the outer identifier.
+         * @param cls Identifier class used by an implicitly tagged outer value.
+         * @return This decoder.
+         */
+        BER_Decoder& decode_bit_string (
+            std::vector < uint8_t >& out,
+            uint8_t& unused_bits,
+            ASN1_Type type = ASN1_Type::BIT_STRING,
+            ASN1_Class cls = ASN1_Class::UNIVERSAL);
         /** @brief Decodes a value whose natural identifier was replaced implicitly. */
         BER_Decoder& decode_implicit (ASN1_Object& out, ASN1_Tag expected, ASN1_Tag natural);
         BER_Decoder& decode_view (std::span < const uint8_t >& out,

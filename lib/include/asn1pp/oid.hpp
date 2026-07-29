@@ -36,6 +36,7 @@
 namespace asn1pp
 {
 
+    /** @brief ASN.1 OBJECT IDENTIFIER represented by unsigned numeric arcs. */
     class OID : public ASN1_Object
     {
     public:

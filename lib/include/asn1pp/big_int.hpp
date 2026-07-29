@@ -37,6 +37,7 @@
 namespace asn1pp
 {
 
+    /** @brief Arbitrary-precision signed ASN.1 INTEGER value. */
     class Big_Int : public ASN1_Object
     {
     public:

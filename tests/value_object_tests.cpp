@@ -179,14 +179,22 @@ TEST_CASE ( "ASN1_Any rejects empty and multiple values", "[any]" )
     REQUIRE_THROWS_AS ( asn1pp::ASN1_Any ( bytes ( { 0x05, 0x00, 0x05, 0x00 } ) ), asn1pp::ASN1_InvalidArgument );
 }
 
-TEST_CASE ( "ASN1_Any rejects semantically non-canonical DER payloads", "[any][der]" )
+TEST_CASE ( "ASN1_Any preserves BER and reports DER canonicality", "[any][ber][der]" )
 {
-    /*
-     * This test documents a current validation gap: get_next_object() validates
-     * TLV structure and canonical length form, but it does not validate the
-     * canonical contents of every universal primitive type.
-     */
-    REQUIRE_THROWS_AS ( asn1pp::ASN1_Any ( bytes ( { 0x01, 0x01, 0x01 } ) ), asn1pp::ASN1_DecodingError );
+    const std::vector < uint8_t > encoded = bytes ( { 0x01, 0x01, 0x01 } );
+    const asn1pp::ASN1_Any value ( encoded );
+    REQUIRE ( value.encoded_tlv () == encoded );
+    REQUIRE_FALSE ( value.is_der_canonical () );
+    REQUIRE_THROWS_AS ( value.DER_encode (), asn1pp::ASN1_EncodingError );
+
+    asn1pp::BER_Decoder ber ( encoded );
+    asn1pp::ASN1_Any decoded;
+    ber.decode ( decoded );
+    REQUIRE ( decoded == value );
+
+    asn1pp::DER_Decoder der ( encoded );
+    REQUIRE_THROWS_AS ( der.decode ( decoded ), asn1pp::ASN1_DecodingError );
+    REQUIRE ( der.remaining () == encoded.size () );
 }
 
 TEST_CASE ( "ASN1_Time encodes RFC 5280 canonical time forms", "[time][rfc5280]" )

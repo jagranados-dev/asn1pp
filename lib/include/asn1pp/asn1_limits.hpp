@@ -30,6 +30,7 @@
 namespace asn1pp
 {
 
+    /** @brief Resource limits applied by BER_Decoder and DER_Decoder. */
     struct BER_DecoderLimits
     {
         size_t max_input_size = 64u * 1024u * 1024u;
@@ -42,6 +43,7 @@ namespace asn1pp
         size_t max_oid_arcs = 4096;
     };
 
+    /** @brief Resource limits applied by DER_Encoder. */
     struct DER_EncoderLimits
     {
         size_t max_output_size = 64u * 1024u * 1024u;
