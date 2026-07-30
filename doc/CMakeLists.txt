@@ -17,11 +17,11 @@ set(DOXYFILE_IN "${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in")
 set(DOXYFILE_OUT "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
 configure_file("${DOXYFILE_IN}" "${DOXYFILE_OUT}" @ONLY)
 
-add_custom_target(asn1_docs
+add_custom_target(asn1pp_docs
     COMMAND "${DOXYGEN_EXECUTABLE}" "${DOXYFILE_OUT}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Generating ASN.1 API documentation"
+    COMMENT "Generating ASN.1PP API documentation"
     VERBATIM
 )
 
-add_custom_target(doc_doxygen DEPENDS asn1_docs)
+add_custom_target(doc_doxygen DEPENDS asn1pp_docs)

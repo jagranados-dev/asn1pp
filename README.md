@@ -93,8 +93,8 @@ The library includes reusable objects derived from `ASN1_Object`:
 Application-specific ASN.1 structures can derive from `ASN1_Object` and implement:
 
 ```cpp
-void encode_into ( asn1::DER_Encoder& to ) const override;
-void decode_from ( asn1::BER_Decoder& from ) override;
+void encode_into ( asn1pp::DER_Encoder& to ) const override;
+void decode_from ( asn1pp::BER_Decoder& from ) override;
 ```
 
 ## System Requirements
@@ -102,8 +102,8 @@ void decode_from ( asn1::BER_Decoder& from ) override;
 To build and consume `asn1pp`, your development environment must meet the following minimum requirements:
 
 - **C++ Compiler:** A C++20 compliant compiler (GCC 10+, Clang 11+, or MSVC 2019+).
-- **Build System:** CMake 3.15 or newer.
-- **Testing Framework:** Catch2 v3.15+ (automatically fetched via CMake during test builds).
+- **Build System:** CMake 3.20 or newer.
+- **Testing Framework:** Catch2 v3.20+ (automatically fetched via CMake during test builds).
 - **Documentation (Optional):** Doxygen (to generate HTML/LaTeX API references).
 
 ## Building and Compiling
@@ -144,16 +144,16 @@ Or run the test binary directly for detailed Catch2 output:
 List the available Catch2 test cases:
 
 ```bash
-./build/tests/asn1_tests --list-tests
+./build/tests/asn1pp_tests --list-tests
 ```
 
 Run specific groups:
 
 ```bash
-./build/tests/asn1_tests "[der][encoder]"
-./build/tests/asn1_tests "[ber][decoder]"
-./build/tests/asn1_tests "[oid]"
-./build/tests/asn1_tests "[time]"
+./build/tests/asn1pp_tests "[der][encoder]"
+./build/tests/asn1pp_tests "[ber][decoder]"
+./build/tests/asn1pp_tests "[oid]"
+./build/tests/asn1pp_tests "[time]"
 ```
 
 ## Quick Start & Usage
@@ -172,7 +172,7 @@ The following example demonstrates how to serialize and deserialize a structured
 int
 main ()
 {
-    asn1::DER_Encoder encoder;
+    asn1pp::DER_Encoder encoder;
 
     encoder.encode ( true )
            .encode ( uint64_t ( 65537 ) )
@@ -184,7 +184,7 @@ main ()
     const std::vector < uint8_t > encoded =
         encoder.get_contents ();
 
-    asn1::DER_Decoder decoder ( encoded );
+    asn1pp::DER_Decoder decoder ( encoded );
 
     bool boolean_value = false;
     uint64_t unsigned_value = 0;
@@ -218,18 +218,18 @@ Example ::= SEQUENCE {
 ```
 
 ```cpp
-class Example : public asn1::ASN1_Object
+class Example : public asn1pp::ASN1_Object
 {
 public:
-    asn1::OID algorithm;
-    asn1::Big_Int serial;
+    asn1pp::OID algorithm;
+    asn1pp::Big_Int serial;
     bool enabled = false;
 
     void
-    encode_into ( asn1::DER_Encoder& to ) const override
+    encode_into ( asn1pp::DER_Encoder& to ) const override
     {
         to.encode_sequence (
-            [&] ( asn1::DER_Encoder& sequence )
+            [&] ( asn1pp::DER_Encoder& sequence )
             {
                 sequence.encode ( algorithm );
                 sequence.encode ( serial );
@@ -239,17 +239,17 @@ public:
     }
 
     void
-    decode_from ( asn1::BER_Decoder& from ) override
+    decode_from ( asn1pp::BER_Decoder& from ) override
     {
         from.decode_sequence (
-            [&] ( asn1::BER_Decoder& sequence )
+            [&] ( asn1pp::BER_Decoder& sequence )
             {
                 sequence.decode ( algorithm );
                 sequence.decode ( serial );
                 sequence.decode_default (
                     enabled,
                     false,
-                    asn1::ASN1_Type::BOOLEAN
+                    asn1pp::ASN1_Type::BOOLEAN
                 );
             }
         );
@@ -268,7 +268,7 @@ original.enabled = true;
 const std::vector < uint8_t > encoded =
     original.DER_encode ();
 
-asn1::DER_Decoder decoder ( encoded );
+asn1pp::DER_Decoder decoder ( encoded );
 Example decoded;
 decoder.decode ( decoded );
 ```
@@ -278,7 +278,7 @@ decoder.decode ( decoded );
 `Sequence_Of<T>` preserves element order:
 
 ```cpp
-asn1::Sequence_Of < asn1::IA5_String > names;
+asn1pp::Sequence_Of < asn1pp::IA5_String > names;
 names.values.emplace_back ( "first.example" );
 names.values.emplace_back ( "second.example" );
 ```
@@ -286,7 +286,7 @@ names.values.emplace_back ( "second.example" );
 `Set_Of<T>` sorts complete DER element encodings canonically when encoded:
 
 ```cpp
-asn1::Set_Of < asn1::Printable_String > roles;
+asn1pp::Set_Of < asn1pp::Printable_String > roles;
 roles.values.emplace_back ( "Signing" );
 roles.values.emplace_back ( "Administrator" );
 roles.values.emplace_back ( "Encryption" );
@@ -299,7 +299,7 @@ The stored order of a `Set_Of<T>` should not be treated as semantic ordering. Af
 Inputs should be treated as untrusted data. Configure limits appropriate for the application:
 
 ```cpp
-asn1::BER_DecoderLimits limits;
+asn1pp::BER_DecoderLimits limits;
 limits.max_input_size = 4u * 1024u * 1024u;
 limits.max_element_size = 1u * 1024u * 1024u;
 limits.max_depth = 32;
@@ -309,17 +309,17 @@ limits.max_length_octets = sizeof ( size_t );
 limits.max_integer_octets = 4096;
 limits.max_oid_arcs = 256;
 
-asn1::DER_Decoder decoder ( encoded, limits );
+asn1pp::DER_Decoder decoder ( encoded, limits );
 ```
 
 The encoder also supports output limits:
 
 ```cpp
-asn1::DER_EncoderLimits limits;
+asn1pp::DER_EncoderLimits limits;
 limits.max_output_size = 4u * 1024u * 1024u;
 limits.max_depth = 32;
 
-asn1::DER_Encoder encoder ( limits );
+asn1pp::DER_Encoder encoder ( limits );
 ```
 
 The root encoder starts at depth zero. A constructed value increments the depth inherited by its child encoder.
@@ -331,12 +331,12 @@ All library errors derive from `ASN1_Error`:
 ```cpp
 try
 {
-    asn1::DER_Decoder decoder ( encoded );
+    asn1pp::DER_Decoder decoder ( encoded );
     decoder.decode ( value );
 }
-catch ( const asn1::ASN1_DecodingError& error )
+catch ( const asn1pp::ASN1_DecodingError& error )
 {
-    const asn1::ASN1_ErrorCode code = error.code ();
+    const asn1pp::ASN1_ErrorCode code = error.code ();
     const size_t offset = error.offset ();
     const char* message = error.what ();
 }
@@ -372,7 +372,7 @@ Constructing a decoder from a temporary `std::vector<uint8_t>` is deliberately d
 
 ```cpp
 std::span < const uint8_t > value;
-decoder.decode_view ( value, asn1::ASN1_Type::OCTET_STRING );
+decoder.decode_view ( value, asn1pp::ASN1_Type::OCTET_STRING );
 ```
 
 The returned view follows the same lifetime rules as the decoder input.
@@ -471,8 +471,8 @@ Install the static library, public headers, license, README, and CMake package m
 ```bash
 cmake -S . -B build/release \
     -DCMAKE_BUILD_TYPE=Release \
-    -DASN1LIB_BUILD_TESTS=OFF \
-    -DASN1LIB_BUILD_EXAMPLES=OFF
+    -DASN1PP_BUILD_TESTS=OFF \
+    -DASN1PP_BUILD_EXAMPLES=OFF
 
 cmake --build build/release --parallel
 cmake --install build/release --prefix /path/to/prefix
@@ -481,11 +481,11 @@ cmake --install build/release --prefix /path/to/prefix
 A consuming CMake project can then use:
 
 ```cmake
-find_package(asn1 1 CONFIG REQUIRED)
+find_package(asn1pp 1 CONFIG REQUIRED)
 
 target_link_libraries(application
     PRIVATE
-        asn1::static
+        asn1pp::static
 )
 ```
 
@@ -496,29 +496,48 @@ cmake -S . -B build \
     -DCMAKE_PREFIX_PATH=/path/to/prefix
 ```
 
-The install tree is relocatable and exports targets through `asn1Config.cmake`, `asn1ConfigVersion.cmake`, and `asn1Targets.cmake`.
+The install tree is relocatable and exports targets through `asn1ppConfig.cmake`, `asn1ppConfigVersion.cmake`, and `asn1ppTargets.cmake`.
 
 ## Build options
 
-- `ASN1LIB_BUILD_TESTS`: build Catch2 tests.
-- `ASN1LIB_BUILD_EXAMPLES`: build example executables.
-- `ASN1LIB_BUILD_DOCS`: generate Doxygen documentation.
-- `ASN1LIB_BUILD_SHARED`: additionally build `asn1::shared`.
-- `ASN1LIB_ENABLE_WARNINGS`: enable strict warnings on project targets only.
-- `ASN1LIB_WARNINGS_AS_ERRORS`: promote project warnings to errors.
-- `ASN1LIB_ENABLE_SANITIZERS`: enable ASan and UBSan with GCC or Clang.
-- `ASN1LIB_INSTALL`: generate install and package-export rules.
+- `ASN1PP_BUILD_TESTS`: build Catch2 tests.
+- `ASN1PP_BUILD_EXAMPLES`: build example executables.
+- `ASN1PP_BUILD_DOCS`: generate Doxygen documentation.
+- `ASN1PP_BUILD_SHARED`: additionally build `asn1pp::shared`.
+- `ASN1PP_ENABLE_WARNINGS`: enable strict warnings on project targets only.
+- `ASN1PP_WARNINGS_AS_ERRORS`: promote project warnings to errors.
+- `ASN1PP_ENABLE_SANITIZERS`: enable ASan and UBSan with GCC or Clang.
+- `ASN1PP_INSTALL`: generate install and package-export rules.
 
 These options do not inject warning or sanitizer flags into projects that consume the library.
 
 ## Consuming as a subproject
 
 ```cmake
-add_subdirectory(path/to/asn1-lib)
+add_subdirectory(path/to/asn1pp-lib)
 
 target_link_libraries(application
     PRIVATE
-        asn1::static
+        asn1pp::static
+)
+```
+
+or
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    asn1pp
+    GIT_REPOSITORY https://github.com/jagranados-dev/asn1pp.git
+    GIT_TAG v1.0.0
+)
+
+FetchContent_MakeAvailable(asn1pp)
+
+target_link_libraries(application
+    PRIVATE
+        asn1pp::static
 )
 ```
 

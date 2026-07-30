@@ -10,16 +10,16 @@ set(ASN1PP_SOURCES
     src/asn1pp/asn1_time.cpp
     src/asn1pp/ber_decoder.cpp
     src/asn1pp/big_int.cpp
-src/asn1pp/binary_time.cpp
+    src/asn1pp/binary_time.cpp
     src/asn1pp/bit_string.cpp
-src/asn1pp/character_strings.cpp
+    src/asn1pp/character_strings.cpp
     src/asn1pp/der_decoder.cpp
     src/asn1pp/der_encoder.cpp
     src/asn1pp/ia5_string.cpp
     src/asn1pp/octet_string.cpp
     src/asn1pp/oid.cpp
-src/asn1pp/open_type_registry.cpp
-src/asn1pp/pki_types.cpp
+    src/asn1pp/open_type_registry.cpp
+    src/asn1pp/pki_types.cpp
     src/asn1pp/printable_string.cpp
     src/asn1pp/utf8_string.cpp
 )
@@ -44,7 +44,7 @@ target_include_directories(asn1pp_static
         ${CMAKE_CURRENT_SOURCE_DIR}/src/asn1pp
 )
 
-function(ASN1PP_configure_target target)
+function(asn1pp_configure_target target)
     if(ASN1PP_ENABLE_WARNINGS)
         if(MSVC)
             target_compile_options(${target} PRIVATE /W4 $<$<BOOL:${ASN1PP_WARNINGS_AS_ERRORS}>:/WX>)
@@ -68,7 +68,7 @@ function(ASN1PP_configure_target target)
     endif()
 endfunction()
 
-ASN1PP_configure_target(asn1pp_static)
+asn1pp_configure_target(asn1pp_static)
 
 if(ASN1PP_BUILD_SHARED)
     add_library(asn1pp_shared SHARED ${ASN1PP_SOURCES})
@@ -92,7 +92,7 @@ if(ASN1PP_BUILD_SHARED)
             ${CMAKE_CURRENT_SOURCE_DIR}/src/asn1pp
     )
 
-    ASN1PP_configure_target(asn1pp_shared)
+    asn1pp_configure_target(asn1pp_shared)
 endif()
 
 if(ASN1PP_INSTALL)
@@ -117,7 +117,7 @@ if(ASN1PP_INSTALL)
     endif()
 
     install(
-        DIRECTORY include/asn1
+        DIRECTORY include/asn1pp
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.hpp"
     )

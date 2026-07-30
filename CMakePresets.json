@@ -14,10 +14,10 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ASN1LIB_BUILD_TESTS": "ON",
-        "ASN1LIB_BUILD_EXAMPLES": "ON",
-        "ASN1LIB_ENABLE_WARNINGS": "ON",
-        "ASN1LIB_WARNINGS_AS_ERRORS": "ON"
+        "ASN1PP_BUILD_TESTS": "ON",
+        "ASN1PP_BUILD_EXAMPLES": "ON",
+        "ASN1PP_ENABLE_WARNINGS": "ON",
+        "ASN1PP_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -26,7 +26,7 @@
       "displayName": "Address and undefined behavior sanitizers",
       "binaryDir": "${sourceDir}/build/sanitize",
       "cacheVariables": {
-        "ASN1LIB_ENABLE_SANITIZERS": "ON"
+        "ASN1PP_ENABLE_SANITIZERS": "ON"
       }
     },
     {
@@ -36,8 +36,8 @@
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ASN1LIB_BUILD_TESTS": "OFF",
-        "ASN1LIB_BUILD_EXAMPLES": "OFF"
+        "ASN1PP_BUILD_TESTS": "OFF",
+        "ASN1PP_BUILD_EXAMPLES": "OFF"
       }
     }
   ],
