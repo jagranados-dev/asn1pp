@@ -6,7 +6,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(asn1pp
-    VERSION 1.0.0
+    VERSION 1.1.1
     DESCRIPTION "C++20 ASN.1 BER decoder and DER codec library"
     HOMEPAGE_URL "https://github.com/jagranados-dev/asn1pp"
     LANGUAGES CXX
