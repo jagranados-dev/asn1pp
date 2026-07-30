@@ -28,7 +28,7 @@ option(ASN1PP_BUILD_SHARED          "Build the shared library target"           
 option(ASN1PP_ENABLE_WARNINGS       "Enable strict compiler warnings for project targets"       ${ASN1PP_DEFAULT_DEVELOPER_OPTIONS})
 option(ASN1PP_WARNINGS_AS_ERRORS    "Treat project warnings as errors"                          OFF)
 option(ASN1PP_ENABLE_SANITIZERS     "Enable AddressSanitizer and UndefinedBehaviorSanitizer"    OFF)
-option(ASN1PP_INSTALL               "Generate install and CMake package rules"                  ON)
+option(ASN1PP_INSTALL               "Generate install and CMake package rules"                  OFF)
 
 add_subdirectory(lib)
 
@@ -47,16 +47,18 @@ if(ASN1PP_BUILD_DOCS)
 endif()
 
 if(ASN1PP_INSTALL)
-    set(ASN1PP_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/asn1")
+    set(ASN1PP_INSTALL_CMAKEDIR 
+        "${CMAKE_INSTALL_LIBDIR}/cmake/asn1pp"
+    )
 
     configure_package_config_file(
-        cmake/asn1Config.cmake.in
-        "${CMAKE_CURRENT_BINARY_DIR}/asn1Config.cmake"
+        cmake/asn1ppConfig.cmake.in
+        "${CMAKE_CURRENT_BINARY_DIR}/asn1ppConfig.cmake"
         INSTALL_DESTINATION "${ASN1PP_INSTALL_CMAKEDIR}"
     )
 
     write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/asn1ConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/asn1ppConfigVersion.cmake"
         VERSION "${PROJECT_VERSION}"
         COMPATIBILITY SameMajorVersion
     )
@@ -70,8 +72,8 @@ if(ASN1PP_INSTALL)
 
     install(
         FILES
-            "${CMAKE_CURRENT_BINARY_DIR}/asn1Config.cmake"
-            "${CMAKE_CURRENT_BINARY_DIR}/asn1ConfigVersion.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/asn1ppConfig.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/asn1ppConfigVersion.cmake"
         DESTINATION "${ASN1PP_INSTALL_CMAKEDIR}"
     )
 
